@@ -91,3 +91,4 @@ webdriver-manager==4.0.2
 websocket-client==1.8.0
 whois==1.20240129.2
 wsproto==1.2.0
+pdfkit==1.0.0
