@@ -11,20 +11,11 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-@st.cache_resource
 def initialize_openai_client():
     """Initialize OpenAI client with API key from environment variables"""
-    
-    # Fetch API key from .env or Streamlit secrets
     api_key = os.getenv("OPENAI_API_KEY")
-    
-    
-    try:
-        # Initialize client
-        openai.api_key = api_key
-        return openai
-    except Exception as e:
-        Print("hello")
+    openai.api_key = api_key
+    return openai
 
 
 # Initialize the client
