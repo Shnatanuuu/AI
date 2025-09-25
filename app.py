@@ -7,27 +7,102 @@ from datetime import datetime
 import json
 import os
 from dotenv import load_dotenv
-import pdfkit
-import webbrowser
-import tempfile
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-import time
+import weasyprint
+from weasyprint import HTML, CSS
 
 # Load environment variables
 load_dotenv()
 
-# Set up the page
+# Set up the page with mobile-friendly configuration
 st.set_page_config(
     page_title="AI Shoe QC Inspector",
     page_icon="👟",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
-st.title("🔍 AI Footwear Quality Control Inspector")
-st.markdown("*Powered by OpenAI GPT-4 Vision API*")
+# Custom CSS for mobile responsiveness
+st.markdown("""
+<style>
+    /* Mobile-first responsive design */
+    @media (max-width: 768px) {
+        .main .block-container {
+            padding-top: 1rem;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+        
+        .stColumns > div {
+            margin-bottom: 1rem;
+        }
+        
+        .upload-section {
+            margin-bottom: 2rem;
+        }
+        
+        .metric-container {
+            margin-bottom: 1rem;
+        }
+    }
+    
+    .upload-box {
+        border: 2px dashed #cccccc;
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+        margin-bottom: 20px;
+        background-color: #f8f9fa;
+    }
+    
+    .upload-box:hover {
+        border-color: #007bff;
+        background-color: #e3f2fd;
+    }
+    
+    .company-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+    
+    .angle-header {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        border-left: 4px solid #007bff;
+        font-weight: bold;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Initialize OpenAI client from environment variable
+@st.cache_resource
+def get_openai_client():
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        st.error("OpenAI API key not found in environment variables. Please check your .env file.")
+        st.stop()
+    return openai.OpenAI(api_key=api_key)
+
+client = get_openai_client()
+
+# Company header
+st.markdown("""
+<div class="company-header">
+    <h1 style="margin: 0; font-size: 2rem;">Grand Step</h1>
+    <h2 style="margin: 5px 0; font-size: 1.5rem;">Grand Step (H.K.) Ltd</h2>
+    <h3 style="margin: 10px 0; font-size: 1.2rem;">🔍 AI FOOTWEAR QUALITY CONTROL INSPECTOR</h3>
+    <div style="margin-top: 15px; font-size: 0.9rem;">
+        📞 Tel: 86-769-8308 0888-381 | 📠 Fax: 86-769-8308 0999<br>
+        📧 production7@grandstep.com | production@grandstep.com<br>
+        🌐 www.grandstep.com
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 # Function to encode image
 def encode_image(image):
@@ -36,14 +111,14 @@ def encode_image(image):
     image.save(buffer, format="JPEG")
     return base64.b64encode(buffer.getvalue()).decode()
 
-# Professional QC Analysis function
+# Professional QC Analysis function (keeping the same comprehensive analysis)
 def analyze_shoe_image(client, image, angle_name, style_number="", color="", po_number=""):
     """
     Analyze shoe image using OpenAI GPT-4 Vision API with professional QC expertise
     """
     base64_image = encode_image(image)
     
-    # COMPREHENSIVE PROFESSIONAL QC INSPECTOR PROMPT
+    # COMPREHENSIVE PROFESSIONAL QC INSPECTOR PROMPT (same as original)
     prompt = f"""
 PROFESSIONAL FOOTWEAR QUALITY CONTROL INSPECTION - EXPERT ANALYSIS
 
@@ -80,8 +155,6 @@ DETAILED DEFECT CLASSIFICATION SYSTEM:
 - Loose hardware that could cause injury
 - Chemical odors or visible contamination
 - Unstable heel attachment causing tilt or instability
-
-
 
 ⚠️ MAJOR DEFECTS (Require Rework - Customer Visible Issues):
 **1. Adhesive & Bonding Problems:**
@@ -140,8 +213,6 @@ DETAILED DEFECT CLASSIFICATION SYSTEM:
 - Heel cap damage or misalignment
 - Tread pattern inconsistencies
 
-
-
 ℹ️ MINOR DEFECTS (Acceptable within AQL limits):
 **1. Surface & Cleanliness Issues:**
 - **Cleanliness** defects (surface dirt, dust - cleanable)
@@ -158,74 +229,9 @@ DETAILED DEFECT CLASSIFICATION SYSTEM:
 - **Toe corners** with slight irregularities
 
 **3. Cosmetic Issues:**
-
 - Minor sole texture variations
 - Slight asymmetry in non-structural elements
 - Minor trim imperfections
-
-ANGLE-SPECIFIC INSPECTION FOCUS:
-
-**FRONT VIEW INSPECTION:**
-- Toe cap symmetry and shape consistency
-- Lace eyelet alignment and spacing
-- Tongue centering and positioning
-- Color matching between panels
-- Overall toe box shape and lasting quality
-- Front stitching line straightness
-- Logo placement and quality
-
-**BACK VIEW INSPECTION:**
-- Heel counter shape and symmetry
-- Back seam alignment and straightness
-- Heel tab positioning and attachment
-- Ankle collar height consistency
-- Back logo/branding placement
-- Counter stitching quality
-- Heel to sole attachment integrity
-
-**LEFT/RIGHT SIDE INSPECTION:**
-- Profile shape consistency and symmetry
-- Sole to upper bonding quality
-- Waist definition and shaping
-- Arch support visibility and positioning
-- Side panel alignment and stitching
-- Heel pitch and alignment
-- Overall silhouette conformity
-
-**TOP VIEW INSPECTION:**
-- Tongue positioning and symmetry
-- Lace eyelet spacing and alignment
-- Upper panel symmetry (left vs right)
-- Color consistency across all visible areas
-- Stitching line parallelism
-- Logo and branding alignment
-
-**SOLE VIEW INSPECTION:**
-- Outsole pattern completeness and clarity
-- Heel attachment and alignment
-- Forefoot flex groove positioning
-- Tread depth consistency
-- Midsole compression and uniformity
-- Any embedded foreign objects
-- Sole marking and size confirmation
-
-INSPECTION METHODOLOGY:
-1. **Systematic Visual Scan:** Examine the shoe systematically from one end to the other
-2. **Lighting Assessment:** Consider if image lighting affects defect visibility
-3. **Symmetry Check:** Compare left vs right sides for consistency
-4. **Scale Assessment:** Evaluate defect size relative to shoe size
-5. **Functionality Impact:** Consider if defect affects shoe performance or durability
-6. **Customer Perception:** Would an average consumer notice and be concerned?
-
-QUALITY ASSESSMENT CRITERIA:
-- **Good:** No visible defects or only very minor cosmetic issues
-- **Fair:** Minor defects present but within acceptable limits
-- **Poor:** Major defects present or excessive minor defects
-
-CONFIDENCE LEVEL GUIDELINES:
-- **High:** Clear, well-lit image with obvious defects or clearly clean areas
-- **Medium:** Adequate image quality with some uncertainty due to angle/lighting
-- **Low:** Poor image quality, shadows, or unclear areas affecting assessment
 
 OUTPUT REQUIREMENTS:
 Provide your professional assessment in this EXACT JSON format:
@@ -255,7 +261,7 @@ Focus on this specific angle provide detailed, actionable feedback that would he
     
     try:
         response = client.chat.completions.create(
-            model="gpt-4o",  # Using GPT-4 with vision capabilities
+            model="gpt-4o",
             messages=[
                 {
                     "role": "user",
@@ -268,14 +274,12 @@ Focus on this specific angle provide detailed, actionable feedback that would he
                     ]
                 }
             ],
-            max_tokens=800,  # Increased for detailed responses
-            temperature=0.1  # Low temperature for consistent, factual analysis
+            max_tokens=800,
+            temperature=0.1
         )
         
-        # Parse the JSON response
         result_text = response.choices[0].message.content
         
-        # Find JSON in the response
         start_idx = result_text.find('{')
         end_idx = result_text.rfind('}') + 1
         
@@ -283,7 +287,6 @@ Focus on this specific angle provide detailed, actionable feedback that would he
             json_str = result_text[start_idx:end_idx]
             return json.loads(json_str)
         else:
-            # Fallback if JSON parsing fails
             return {
                 "angle": angle_name,
                 "critical_defects": [],
@@ -301,12 +304,9 @@ Focus on this specific angle provide detailed, actionable feedback that would he
         st.error(f"Error analyzing {angle_name}: {str(e)}")
         return None
 
-# Generate comprehensive QC Report
+# Generate comprehensive QC Report (same as original)
 def generate_qc_report(analyses, order_info):
-    """
-    Generate final QC report based on all angle analyses and AQL 2.5 standards
-    """
-    # Combine all defects from all angles
+    """Generate final QC report based on all angle analyses and AQL 2.5 standards"""
     all_critical = []
     all_major = []
     all_minor = []
@@ -317,25 +317,20 @@ def generate_qc_report(analyses, order_info):
             all_major.extend(analysis.get('major_defects', []))
             all_minor.extend(analysis.get('minor_defects', []))
     
-    # Remove duplicates while preserving order
     all_critical = list(dict.fromkeys(all_critical))
     all_major = list(dict.fromkeys(all_major))
     all_minor = list(dict.fromkeys(all_minor))
     
-    # Count defects
     critical_count = len(all_critical)
     major_count = len(all_major)
     minor_count = len(all_minor)
     
-    # Apply AQL 2.5 standards (based on sample size of 200 pieces)
-    # These are the actual limits from your inspection report
     aql_limits = {
-        "critical": 0,  # Zero tolerance for critical defects
-        "major": 10,    # Maximum 10 major defects allowed
-        "minor": 14     # Maximum 14 minor defects allowed
+        "critical": 0,
+        "major": 10,
+        "minor": 14
     }
     
-    # Determine final result
     if critical_count > aql_limits["critical"]:
         result = "REJECT"
         reason = f"Critical defects found ({critical_count}) - Zero tolerance policy"
@@ -361,100 +356,18 @@ def generate_qc_report(analyses, order_info):
         "aql_limits": aql_limits
     }
 
-# Function to categorize defects into QC table categories
-def categorize_defects_for_table(all_defects):
-    """
-    Categorize defects into the QC table categories based on keywords
-    """
-    categories = {
-        "Color Variation (色差)": [],
-        "Clean (清潔度)": [],
-        "Toe Lasting": [],
-        "Lining (內里)": [],
-        "Waist (腰幫)": [],
-        "Sock Lining Printing (鞋墊印刷)": [],
-        "Lace (鞋帶)": [],
-        "Outsole (大底)": [],
-        "Velcro (魔術貼)": [],
-        "Adhesion (膠著力)": [],
-        "Buckle (鞋扣)": [],
-        "Sock Cushion (中底海棉/EVA)": [],
-        "Tongue (鞋舌)": [],
-        "Shank Attachment (鐵心固定)": [],
-        "Backstrap Length (後帶長)": [],
-        "Heel (鞋跟)": [],
-        "Backstrap Attachment (後帶固定)": [],
-        "Toplift (天皮)": [],
-        "Damage Upper (鞋面受損)": [],
-        "Bottom Gapping (貼合底片裂口)": [],
-        "X-RAY (鞋面打皺)": [],
-        "Stains (溢膠)": []
-    }
-    
-    # Keywords mapping for categorization
-    keyword_mapping = {
-        "Color Variation (色差)": ["color", "chromatic", "variation", "shade", "bleeding"],
-        "Clean (清潔度)": ["clean", "dirt", "dust", "cleanliness"],
-        "Toe Lasting": ["toe", "lasting", "toe cap", "toe box"],
-        "Lining (內里)": ["lining", "inner", "interior"],
-        "Waist (腰幫)": ["waist", "smooth"],
-        "Sock Lining Printing (鞋墊印刷)": ["sock liner", "insole", "printing"],
-        "Lace (鞋帶)": ["lace", "eyelet"],
-        "Outsole (大底)": ["outsole", "sole", "bottom"],
-        "Velcro (魔術貼)": ["velcro"],
-        "Adhesion (膠著力)": ["adhesion", "glue", "bonding", "debond"],
-        "Buckle (鞋扣)": ["buckle"],
-        "Sock Cushion (中底海棉/EVA)": ["midsole", "eva", "cushion"],
-        "Tongue (鞋舌)": ["tongue"],
-        "Shank Attachment (鐵心固定)": ["shank"],
-        "Backstrap Length (後帶長)": ["backstrap", "strap length"],
-        "Heel (鞋跟)": ["heel"],
-        "Backstrap Attachment (後帶固定)": ["backstrap attachment"],
-        "Toplift (天皮)": ["toplift"],
-        "Damage Upper (鞋面受損)": ["upper", "damage", "tear", "hole"],
-        "Bottom Gapping (貼合底片裂口)": ["gap", "separation"],
-        "X-RAY (鞋面打皺)": ["wrinkle", "crease"],
-        "Stains (溢膠)": ["stain", "overflow", "excess"]
-    }
-    
-    # Categorize defects
-    for defect in all_defects:
-        defect_lower = defect.lower()
-        categorized = False
-        
-        for category, keywords in keyword_mapping.items():
-            if any(keyword in defect_lower for keyword in keywords):
-                categories[category].append(defect)
-                categorized = True
-                break
-        
-        # If not categorized, add to most relevant category or create an "Other" category
-        if not categorized:
-            if "other" not in categories:
-                categories["Other"] = []
-            categories["Other"].append(defect)
-    
-    return categories
-
-# Enhanced HTML Report Generation with Company Header and QC Table
-def generate_html_report(export_report, po_number, style_number):
-    """Generate a professional HTML report with styling, company header, and QC table"""
+# Enhanced HTML Report Generation for PDF (Mobile-Responsive)
+def generate_html_for_pdf(export_report, po_number, style_number):
+    """Generate mobile-responsive HTML report optimized for PDF conversion"""
     
     inspection_data = export_report['inspection_summary']
     defect_data = export_report['defect_summary']
     defects = export_report['defect_details']
     
-    # Combine all defects for categorization
-    all_defects = defects['critical_defects'] + defects['major_defects'] + defects['minor_defects']
-    
-    # Categorize defects for QC table
-    categorized_defects = categorize_defects_for_table(all_defects)
-    
-    # Determine result color
     result_colors = {
-        "ACCEPT": "#28a745",  # Green
-        "REWORK": "#ffc107",  # Yellow
-        "REJECT": "#dc3545"   # Red
+        "ACCEPT": "#28a745",
+        "REWORK": "#ffc107",
+        "REJECT": "#dc3545"
     }
     
     result_color = result_colors.get(inspection_data['final_result'], "#6c757d")
@@ -465,275 +378,175 @@ def generate_html_report(export_report, po_number, style_number):
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>QC Inspection Report - {style_number}</title>
+        <title>QC Inspection Report - {po_number}</title>
         <style>
+            @page {{
+                size: A4;
+                margin: 15mm;
+            }}
+            
+            * {{
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }}
+            
             body {{
                 font-family: 'Arial', sans-serif;
-                line-height: 1.6;
-                margin: 0;
-                padding: 20px;
-                background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+                line-height: 1.4;
                 color: #333;
+                font-size: 12px;
             }}
             
             .report-container {{
-                max-width: 900px;
+                width: 100%;
+                max-width: 800px;
                 margin: 0 auto;
                 background: white;
-                border-radius: 10px;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-                overflow: hidden;
             }}
             
             .company-header {{
-                background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                 color: white;
-                padding: 25px;
+                padding: 20px;
                 text-align: center;
-                border-bottom: 3px solid #ffd700;
+                margin-bottom: 20px;
+                border-radius: 8px;
             }}
             
             .company-header h1 {{
-                margin: 0 0 10px 0;
-                font-size: 1.8rem;
+                font-size: 24px;
+                margin-bottom: 5px;
                 font-weight: bold;
-                text-transform: uppercase;
-                letter-spacing: 2px;
             }}
             
             .company-header h2 {{
-                margin: 0 0 15px 0;
-                font-size: 1.4rem;
-                color: #ffd700;
-                font-weight: normal;
+                font-size: 18px;
+                margin-bottom: 10px;
             }}
             
-            .company-contact {{
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                gap: 10px;
-                font-size: 0.9rem;
-                opacity: 0.9;
-            }}
-            
-            .header {{
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                padding: 25px;
-                text-align: center;
-                position: relative;
-            }}
-            
-            .header::before {{
-                content: '🔍';
-                font-size: 2.5rem;
-                position: absolute;
-                top: 10px;
-                left: 25px;
-                opacity: 0.3;
-            }}
-            
-            .header h1 {{
-                margin: 0;
-                font-size: 1.8rem;
-                font-weight: bold;
+            .company-header h3 {{
+                font-size: 16px;
+                margin-bottom: 15px;
                 text-transform: uppercase;
-                letter-spacing: 2px;
+                letter-spacing: 1px;
             }}
             
-            .content {{
-                padding: 30px;
+            .contact-info {{
+                font-size: 11px;
+                line-height: 1.6;
             }}
             
             .result-banner {{
                 background: {result_color};
                 color: white;
-                padding: 20px;
-                margin: -30px -30px 30px -30px;
+                padding: 15px;
                 text-align: center;
-                font-size: 1.4rem;
+                font-size: 18px;
                 font-weight: bold;
                 text-transform: uppercase;
                 letter-spacing: 1px;
+                margin-bottom: 20px;
+                border-radius: 5px;
             }}
             
             .info-grid {{
                 display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                gap: 15px;
-                margin-bottom: 25px;
-                padding: 20px;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+                margin-bottom: 20px;
+                padding: 15px;
                 background: #f8f9fa;
-                border-radius: 8px;
-                border-left: 5px solid #667eea;
+                border-radius: 5px;
+                border-left: 4px solid #667eea;
             }}
             
             .info-item {{
                 display: flex;
-                align-items: center;
+                justify-content: space-between;
+                padding: 5px 0;
+                border-bottom: 1px solid #dee2e6;
             }}
             
             .info-label {{
                 font-weight: bold;
                 color: #495057;
-                margin-right: 10px;
-                min-width: 80px;
             }}
             
             .info-value {{
                 color: #212529;
                 font-family: 'Courier New', monospace;
-                background: white;
-                padding: 4px 8px;
-                border-radius: 4px;
-                border: 1px solid #dee2e6;
-            }}
-            
-            .qc-table-container {{
-                margin: 25px 0;
-                background: white;
-                border-radius: 8px;
-                overflow: hidden;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            }}
-            
-            .qc-table-title {{
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                padding: 15px;
-                text-align: center;
-                font-size: 1.2rem;
                 font-weight: bold;
-            }}
-            
-            .qc-table {{
-                width: 100%;
-                border-collapse: collapse;
-                font-size: 0.9rem;
-            }}
-            
-            .qc-table th {{
-                background: #f8f9fa;
-                padding: 12px 8px;
-                text-align: center;
-                border: 1px solid #dee2e6;
-                font-weight: bold;
-                color: #495057;
-            }}
-            
-            .qc-table td {{
-                padding: 8px;
-                border: 1px solid #dee2e6;
-                text-align: center;
-                vertical-align: middle;
-            }}
-            
-            .qc-table .problem-cell {{
-                text-align: left;
-                font-weight: 500;
-                min-width: 180px;
-            }}
-            
-            .defect-mark {{
-                width: 20px;
-                height: 20px;
-                border-radius: 50%;
-                display: inline-block;
-                margin: 2px;
-            }}
-            
-            .critical-mark {{
-                background: #dc3545;
-            }}
-            
-            .major-mark {{
-                background: #ffc107;
-            }}
-            
-            .minor-mark {{
-                background: #17a2b8;
             }}
             
             .metrics-container {{
                 display: grid;
                 grid-template-columns: repeat(3, 1fr);
-                gap: 20px;
-                margin: 25px 0;
+                gap: 15px;
+                margin: 20px 0;
             }}
             
             .metric-card {{
                 text-align: center;
-                padding: 20px;
-                border-radius: 10px;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-                position: relative;
-                overflow: hidden;
+                padding: 15px;
+                border-radius: 5px;
+                color: white;
             }}
             
             .metric-card.critical {{
-                background: linear-gradient(135deg, #ff6b6b, #ee5a52);
-                color: white;
+                background: linear-gradient(135deg, #dc3545, #c82333);
             }}
             
             .metric-card.major {{
-                background: linear-gradient(135deg, #feca57, #ff9ff3);
-                color: white;
+                background: linear-gradient(135deg, #ffc107, #e0a800);
             }}
             
             .metric-card.minor {{
-                background: linear-gradient(135deg, #48dbfb, #0abde3);
-                color: white;
+                background: linear-gradient(135deg, #17a2b8, #138496);
             }}
             
             .metric-number {{
-                font-size: 2.5rem;
+                font-size: 24px;
                 font-weight: bold;
-                margin-bottom: 10px;
+                margin-bottom: 5px;
             }}
             
             .metric-label {{
-                font-size: 0.9rem;
+                font-size: 11px;
                 text-transform: uppercase;
                 letter-spacing: 1px;
-                opacity: 0.9;
+                margin-bottom: 3px;
             }}
             
             .metric-limit {{
-                font-size: 0.8rem;
-                opacity: 0.8;
-                margin-top: 5px;
-            }}
-            
-            .defects-section {{
-                margin-top: 25px;
+                font-size: 10px;
+                opacity: 0.9;
             }}
             
             .section-title {{
-                font-size: 1.2rem;
+                font-size: 14px;
                 font-weight: bold;
                 color: #495057;
                 margin: 20px 0 10px 0;
-                padding: 10px 0;
+                padding: 8px 0;
                 border-bottom: 2px solid #e9ecef;
-                display: flex;
-                align-items: center;
             }}
             
             .defect-list {{
                 background: #fff;
-                border-radius: 8px;
+                border-radius: 5px;
                 padding: 15px;
                 margin-bottom: 15px;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+                border: 1px solid #e9ecef;
             }}
             
             .defect-item {{
-                padding: 10px;
-                margin: 6px 0;
-                border-radius: 6px;
-                border-left: 4px solid;
-                display: flex;
-                align-items: flex-start;
+                padding: 8px;
+                margin: 5px 0;
+                border-radius: 3px;
+                border-left: 3px solid;
+                font-size: 11px;
+                line-height: 1.4;
             }}
             
             .defect-item.critical {{
@@ -756,8 +569,9 @@ def generate_html_report(export_report, po_number, style_number):
             
             .defect-number {{
                 font-weight: bold;
-                margin-right: 10px;
-                min-width: 25px;
+                margin-right: 8px;
+                display: inline-block;
+                min-width: 20px;
             }}
             
             .no-defects {{
@@ -767,319 +581,527 @@ def generate_html_report(export_report, po_number, style_number):
                 font-style: italic;
                 background: #f8fff8;
                 border: 1px dashed #28a745;
-                border-radius: 6px;
+                border-radius: 3px;
+                font-size: 11px;
+            }}
+            
+            .reason-box {{
+                background: linear-gradient(135deg, #6f42c1, #5a32a3);
+                color: white;
+                padding: 12px;
+                border-radius: 5px;
+                margin: 15px 0;
+                text-align: center;
+                font-weight: 500;
+                font-size: 12px;
             }}
             
             .footer {{
                 background: #f8f9fa;
-                padding: 20px 30px;
+                padding: 15px;
                 text-align: center;
                 color: #6c757d;
                 border-top: 1px solid #e9ecef;
+                margin-top: 20px;
+                font-size: 10px;
             }}
             
             .footer .logo {{
-                font-size: 1.1rem;
+                font-size: 12px;
                 font-weight: bold;
                 color: #495057;
+                margin-bottom: 5px;
             }}
             
-            .generated-info {{
-                font-size: 0.9rem;
-                margin-top: 10px;
-            }}
-            
-            .reason-box {{
-                background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-                color: white;
-                padding: 15px;
-                border-radius: 8px;
-                margin: 15px 0;
-                text-align: center;
-                font-weight: 500;
-            }}
-            
-            @media print {{
-                body {{ background: white; }}
-                .report-container {{ box-shadow: none; }}
-            }}
-            
-            .icon {{
-                font-size: 1.2rem;
-                margin-right: 10px;
+            /* Mobile responsive adjustments */
+            @media (max-width: 600px) {{
+                .info-grid {{
+                    grid-template-columns: 1fr;
+                }}
+                
+                .metrics-container {{
+                    grid-template-columns: 1fr;
+                    gap: 10px;
+                }}
+                
+                .metric-card {{
+                    padding: 10px;
+                }}
+                
+                .metric-number {{
+                    font-size: 20px;
+                }}
+                
+                .company-header h1 {{
+                    font-size: 20px;
+                }}
+                
+                .company-header h2 {{
+                    font-size: 16px;
+                }}
+                
+                .company-header h3 {{
+                    font-size: 14px;
+                }}
+                
+                .result-banner {{
+                    font-size: 16px;
+                    padding: 12px;
+                }}
             }}
         </style>
     </head>
     <body>
         <div class="report-container">
-            <!-- Company Header -->
             <div class="company-header">
-                <h1>Grand Step (H.K.) Ltd</h1>
-                <h2>ONLINE INSPECTION REPORT</h2>
-                <div class="company-contact">
-                    <div>📞 Tel: 86-769-8308 0888-381</div>
-                    <div>📠 Fax: 86-769-8308 0999</div>
-                    <div>📧 Email: production7@grandstep.com</div>
-                    <div>📧 Email: production@grandstep.com</div>
-                    <div>🌐 Web: www.grandstep.com</div>
+                <h1>Grand Step</h1>
+                <h2>Grand Step (H.K.) Ltd</h2>
+                <h3>ONLINE INSPECTION REPORT</h3>
+                <div class="contact-info">
+                    Tel: 86-769-8308 0888-381 | Fax: 86-769-8308 0999<br>
+                    Email: production7@grandstep.com | production@grandstep.com<br>
+                    Web: www.grandstep.com
                 </div>
             </div>
             
-            <!-- Report Header -->
-            <div class="header">
-                <h1>Quality Control Inspection Report</h1>
+            <div class="result-banner">
+                Final Result: {inspection_data['final_result']}
             </div>
             
-            <div class="content">
-                <div class="result-banner">
-                    🎯 Final Result: {inspection_data['final_result']}
+            <div class="reason-box">
+                <strong>Decision Rationale:</strong> {export_report['decision_rationale']}
+            </div>
+            
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-label">PO Number:</span>
+                    <span class="info-value">{inspection_data['po_number']}</span>
                 </div>
-                
-                <div class="reason-box">
-                    <strong>📋 Decision Rationale:</strong> {export_report['decision_rationale']}
+                <div class="info-item">
+                    <span class="info-label">Style:</span>
+                    <span class="info-value">{inspection_data['style_number']}</span>
                 </div>
-                
-                <div class="info-grid">
-                    <div class="info-item">
-                        <span class="info-label">📦 PO Number:</span>
-                        <span class="info-value">{inspection_data['po_number']}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">👟 Style:</span>
-                        <span class="info-value">{inspection_data['style_number']}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">🎨 Color:</span>
-                        <span class="info-value">{inspection_data['color']}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">🏢 Customer:</span>
-                        <span class="info-value">{inspection_data['customer']}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">👨‍🔬 Inspector:</span>
-                        <span class="info-value">{inspection_data['inspector']}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">📅 Date:</span>
-                        <span class="info-value">{inspection_data['inspection_date']}</span>
-                    </div>
+                <div class="info-item">
+                    <span class="info-label">Color:</span>
+                    <span class="info-value">{inspection_data['color']}</span>
                 </div>
-                
-                <!-- QC Problem Table -->
-                <div class="qc-table-container">
-                    <div class="qc-table-title">
-                        🔍 Quality Control Problem Analysis
-                    </div>
-                    <table class="qc-table">
-                        <thead>
-                            <tr>
-                                <th>Problem 问题</th>
-                                <th>CR</th>
-                                <th>MINOR</th>
-                                <th>CR</th>
-                                <th>MAJOR</th>
-                                <th>MINOR</th>
-                            </tr>
-                        </thead>
-                        <tbody>"""
-
-    # Generate QC table rows
-    qc_table_items = [
-        ("Color Variation (色差)", "Clean (清潔度)"),
-        ("Toe Lasting", "Lining (內里)"),
-        ("Waist (腰幫)", "Sock Lining Printing (鞋墊印刷)"),
-        ("Lace (鞋帶)", "Outsole (大底)"),
-        ("Velcro (魔術貼)", "Adhesion (膠著力)"),
-        ("Buckle (鞋扣)", "Sock Cushion (中底海棉/EVA)"),
-        ("Tongue (鞋舌)", "Shank Attachment (鐵心固定)"),
-        ("Backstrap Length (後帶長)", "Heel (鞋跟)"),
-        ("Backstrap Attachment (後帶固定)", "Toplift (天皮)"),
-        ("Damage Upper (鞋面受損)", "Bottom Gapping (貼合底片裂口)"),
-        ("X-RAY (鞋面打皺)", "Stains (溢膠)")
-    ]
+                <div class="info-item">
+                    <span class="info-label">Customer:</span>
+                    <span class="info-value">{inspection_data['customer']}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Inspector:</span>
+                    <span class="info-value">{inspection_data['inspector']}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Date:</span>
+                    <span class="info-value">{inspection_data['inspection_date']}</span>
+                </div>
+            </div>
+            
+            <div class="section-title">
+                Defect Summary (AQL 2.5 Standard)
+            </div>
+            
+            <div class="metrics-container">
+                <div class="metric-card critical">
+                    <div class="metric-number">{defect_data['critical_count']}</div>
+                    <div class="metric-label">Critical Defects</div>
+                    <div class="metric-limit">Limit: {defect_data['aql_limits']['critical']}</div>
+                </div>
+                <div class="metric-card major">
+                    <div class="metric-number">{defect_data['major_count']}</div>
+                    <div class="metric-label">Major Defects</div>
+                    <div class="metric-limit">Limit: {defect_data['aql_limits']['major']}</div>
+                </div>
+                <div class="metric-card minor">
+                    <div class="metric-number">{defect_data['minor_count']}</div>
+                    <div class="metric-label">Minor Defects</div>
+                    <div class="metric-limit">Limit: {defect_data['aql_limits']['minor']}</div>
+                </div>
+            </div>
+    """
     
-    for left_item, right_item in qc_table_items:
-        # Check if defects exist for each category
-        left_critical = any(defect in defects['critical_defects'] for defect in categorized_defects.get(left_item, []))
-        left_major = any(defect in defects['major_defects'] for defect in categorized_defects.get(left_item, []))
-        left_minor = any(defect in defects['minor_defects'] for defect in categorized_defects.get(left_item, []))
-        
-        right_critical = any(defect in defects['critical_defects'] for defect in categorized_defects.get(right_item, []))
-        right_major = any(defect in defects['major_defects'] for defect in categorized_defects.get(right_item, []))
-        right_minor = any(defect in defects['minor_defects'] for defect in categorized_defects.get(right_item, []))
-        
-        html_content += f"""
-                            <tr>
-                                <td class="problem-cell">{left_item}</td>
-                                <td>{'<span class="defect-mark critical-mark"></span>' if left_critical else ''}</td>
-                                <td>{'<span class="defect-mark minor-mark"></span>' if left_minor else ''}</td>
-                                <td>{'<span class="defect-mark critical-mark"></span>' if right_critical else ''}</td>
-                                <td>{'<span class="defect-mark major-mark"></span>' if right_major else ''}</td>
-                                <td>{'<span class="defect-mark minor-mark"></span>' if right_minor else ''}</td>
-                            </tr>
-                            <tr>
-                                <td class="problem-cell">{right_item}</td>
-                                <td>{'<span class="defect-mark critical-mark"></span>' if right_critical else ''}</td>
-                                <td>{'<span class="defect-mark minor-mark"></span>' if right_minor else ''}</td>
-                                <td colspan="3" style="background: #f8f9fa;"></td>
-                            </tr>"""
-    
-    html_content += """
-                        </tbody>
-                    </table>
-                </div>
-                
-                <div class="section-title">
-                    <span class="icon">📊</span>
-                    Defect Summary (AQL 2.5 Standard)
-                </div>
-                
-                <div class="metrics-container">
-                    <div class="metric-card critical">
-                        <div class="metric-number">{defect_data['critical_count']}</div>
-                        <div class="metric-label">🚨 Critical Defects</div>
-                        <div class="metric-limit">Limit: {defect_data['aql_limits']['critical']}</div>
-                    </div>
-                    <div class="metric-card major">
-                        <div class="metric-number">{defect_data['major_count']}</div>
-                        <div class="metric-label">⚠️ Major Defects</div>
-                        <div class="metric-limit">Limit: {defect_data['aql_limits']['major']}</div>
-                    </div>
-                    <div class="metric-card minor">
-                        <div class="metric-number">{defect_data['minor_count']}</div>
-                        <div class="metric-label">ℹ️ Minor Defects</div>
-                        <div class="metric-limit">Limit: {defect_data['aql_limits']['minor']}</div>
-                    </div>
-                </div>
-                
-                <div class="defects-section">"""
-
     # Critical Defects Section
     html_content += """
-                    <div class="section-title">
-                        <span class="icon">🚨</span>
-                        Critical Defects
-                    </div>
-                    <div class="defect-list">"""
+            <div class="section-title">Critical Defects</div>
+            <div class="defect-list">
+    """
     
     if defects['critical_defects']:
         for i, defect in enumerate(defects['critical_defects'], 1):
             html_content += f"""
-                        <div class="defect-item critical">
-                            <span class="defect-number">{i}.</span>
-                            <span>{defect}</span>
-                        </div>"""
+                <div class="defect-item critical">
+                    <span class="defect-number">{i}.</span>
+                    <span>{defect}</span>
+                </div>
+            """
     else:
-        html_content += '<div class="no-defects">✅ No critical defects found</div>'
+        html_content += '<div class="no-defects">No critical defects found</div>'
     
     html_content += "</div>"
     
     # Major Defects Section
     html_content += """
-                    <div class="section-title">
-                        <span class="icon">⚠️</span>
-                        Major Defects
-                    </div>
-                    <div class="defect-list">"""
+            <div class="section-title">Major Defects</div>
+            <div class="defect-list">
+    """
     
     if defects['major_defects']:
         for i, defect in enumerate(defects['major_defects'], 1):
             html_content += f"""
-                        <div class="defect-item major">
-                            <span class="defect-number">{i}.</span>
-                            <span>{defect}</span>
-                        </div>"""
+                <div class="defect-item major">
+                    <span class="defect-number">{i}.</span>
+                    <span>{defect}</span>
+                </div>
+            """
     else:
-        html_content += '<div class="no-defects">✅ No major defects found</div>'
+        html_content += '<div class="no-defects">No major defects found</div>'
     
     html_content += "</div>"
     
     # Minor Defects Section
     html_content += """
-                    <div class="section-title">
-                        <span class="icon">ℹ️</span>
-                        Minor Defects
-                    </div>
-                    <div class="defect-list">"""
+            <div class="section-title">Minor Defects</div>
+            <div class="defect-list">
+    """
     
     if defects['minor_defects']:
         for i, defect in enumerate(defects['minor_defects'], 1):
             html_content += f"""
-                        <div class="defect-item minor">
-                            <span class="defect-number">{i}.</span>
-                            <span>{defect}</span>
-                        </div>"""
+                <div class="defect-item minor">
+                    <span class="defect-number">{i}.</span>
+                    <span>{defect}</span>
+                </div>
+            """
     else:
-        html_content += '<div class="no-defects">✅ No minor defects found</div>'
+        html_content += '<div class="no-defects">No minor defects found</div>'
     
     html_content += f"""
-                    </div>
-                </div>
             </div>
             
             <div class="footer">
-                <div class="logo">🤖 AI Footwear Quality Control Inspector</div>
-                <div class="generated-info">
+                <div class="logo">AI Footwear Quality Control Inspector</div>
+                <div>
                     Report generated on {inspection_data['inspection_date']} using OpenAI GPT-4 Vision API<br>
                     Powered by advanced computer vision and professional QC expertise
                 </div>
             </div>
         </div>
     </body>
-    </html>"""
+    </html>
+    """
     
     return html_content
 
-# Function to convert HTML to JPG using Selenium
-def html_to_jpg(html_content, style_number):
-    """Convert HTML content to JPG image using Selenium"""
+# Function to generate PDF from HTML
+def generate_pdf_report(export_report, po_number, style_number):
+    """Generate PDF report from HTML using WeasyPrint"""
+    html_content = generate_html_for_pdf(export_report, po_number, style_number)
+    
     try:
-        # Create a temporary HTML file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8') as temp_file:
-            temp_file.write(html_content)
-            temp_file_path = temp_file.name
-
-        # Set up Chrome options for headless browsing
-        chrome_options = Options()
-        chrome_options.add_argument("--headless")
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-dev-shm-usage")
-        chrome_options.add_argument("--window-size=1200,1600")  # Adjust size as needed
-        chrome_options.add_argument("--disable-gpu")
-
-        # Initialize the Chrome driver
-        service = Service(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=service, options=chrome_options)
-
-        try:
-            # Load the HTML file
-            driver.get(f"file://{temp_file_path}")
-            
-            # Wait for the page to load completely
-            time.sleep(3)
-            
-            # Get page dimensions and set window size accordingly
-            total_height = driver.execute_script("return document.body.scrollHeight")
-            driver.set_window_size(1200, total_height)
-            
-            # Take screenshot
-            screenshot = driver.get_screenshot_as_png()
-            
-            # Convert to PIL Image
-            image = Image.open(io.BytesIO(screenshot))
-            
-            # Convert to RGB if necessary
-            if image.mode in ("RGBA", "P"):
-                image = image.convert("RGB")
-            
-            return image
-
-        finally:
-            driver.quit()
-            # Clean up temporary file
-            os.unlink(temp_file_path)
-
+        # Create PDF from HTML
+        html_doc = HTML(string=html_content)
+        pdf_bytes = html_doc.write_pdf()
+        return pdf_bytes
     except Exception as e:
-        st.error(f"Error converting HTML to JPG: {str(e)}")
+        st.error(f"Error generating PDF: {str(e)}")
         return None
+
+# Order Information Section
+st.header("Order Information")
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    po_number = st.text_input("PO Number", value="0144540", help="Purchase Order Number")
+    customer = st.text_input("Customer", value="MIA", help="Customer/Brand Name")
+    
+with col2:
+    st.markdown('<div class="angle-header">🔄 Back View</div>', unsafe_allow_html=True)
+    back_image = st.file_uploader(
+        "Upload Back View",
+        type=['png', 'jpg', 'jpeg'],
+        key="back",
+        help="Heel, counter, back seam view"
+    )
+    if back_image:
+        uploaded_images["Back View"] = back_image
+        st.image(Image.open(back_image), caption="Back View", use_container_width=True)
+
+with col3:
+    st.markdown('<div class="angle-header">⬅️ Left Side</div>', unsafe_allow_html=True)
+    left_image = st.file_uploader(
+        "Upload Left Side",
+        type=['png', 'jpg', 'jpeg'],
+        key="left",
+        help="Left profile view"
+    )
+    if left_image:
+        uploaded_images["Left Side"] = left_image
+        st.image(Image.open(left_image), caption="Left Side", use_container_width=True)
+
+with col4:
+    st.markdown('<div class="angle-header">➡️ Right Side</div>', unsafe_allow_html=True)
+    right_image = st.file_uploader(
+        "Upload Right Side",
+        type=['png', 'jpg', 'jpeg'],
+        key="right",
+        help="Right profile view"
+    )
+    if right_image:
+        uploaded_images["Right Side"] = right_image
+        st.image(Image.open(right_image), caption="Right Side", use_container_width=True)
+
+st.divider()
+
+# Display upload status
+if uploaded_images:
+    st.success(f"✅ {len(uploaded_images)} images uploaded successfully")
+    st.info(f"📸 Uploaded angles: {', '.join(uploaded_images.keys())}")
+else:
+    st.info("📤 Please upload at least 2 images from different angles to begin quality inspection.")
+
+# Analysis Section
+if len(uploaded_images) >= 2:
+    if st.button("🔍 Start AI Quality Inspection", type="primary", use_container_width=True):
+        st.header("🤖 AI Analysis in Progress...")
+        
+        # Progress tracking
+        total_images = len(uploaded_images)
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
+        analyses = []
+        
+        # Analyze each uploaded image
+        for idx, (angle_name, uploaded_file) in enumerate(uploaded_images.items()):
+            status_text.text(f"🔍 Analyzing {angle_name}... ({idx+1}/{total_images})")
+            
+            image = Image.open(uploaded_file)
+            analysis = analyze_shoe_image(
+                client, 
+                image, 
+                angle_name, 
+                style_number, 
+                color, 
+                po_number
+            )
+            analyses.append(analysis)
+            
+            progress_bar.progress((idx + 1) / total_images)
+        
+        status_text.text("✅ Analysis complete! Generating report...")
+        
+        # Generate final QC report
+        order_info = {
+            "po_number": po_number,
+            "style_number": style_number,
+            "color": color,
+            "customer": customer,
+            "inspector": inspector,
+            "inspection_date": inspection_date.strftime("%Y-%m-%d")
+        }
+        
+        final_report = generate_qc_report(analyses, order_info)
+        
+        st.divider()
+        
+        # Display Results
+        st.header("📊 Quality Control Inspection Report")
+        
+        # Result Header
+        result_colors = {
+            "ACCEPT": "success",
+            "REWORK": "warning", 
+            "REJECT": "error"
+        }
+        
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            st.markdown(f"### Final Result:")
+            st.markdown(f"## :{result_colors[final_report['result']]}[{final_report['result']}]")
+        
+        with col2:
+            st.markdown(f"### Reason:")
+            st.markdown(f"**{final_report['reason']}**")
+            st.markdown(f"*Inspection completed on {inspection_date.strftime('%B %d, %Y')}*")
+        
+        # Defect Summary Dashboard (Mobile-responsive)
+        st.subheader("📈 Defect Summary (AQL 2.5 Standard)")
+        
+        # For mobile, stack metrics vertically
+        if st.container():
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric(
+                    "🚨 Critical", 
+                    final_report['critical_count'],
+                    delta=f"Limit: {final_report['aql_limits']['critical']}",
+                    delta_color="inverse"
+                )
+                
+            with col2:
+                major_over_limit = final_report['major_count'] - final_report['aql_limits']['major']
+                st.metric(
+                    "⚠️ Major", 
+                    final_report['major_count'],
+                    delta=f"Limit: {final_report['aql_limits']['major']}",
+                    delta_color="inverse" if major_over_limit > 0 else "normal"
+                )
+                
+            with col3:
+                minor_over_limit = final_report['minor_count'] - final_report['aql_limits']['minor']
+                st.metric(
+                    "ℹ️ Minor", 
+                    final_report['minor_count'],
+                    delta=f"Limit: {final_report['aql_limits']['minor']}",
+                    delta_color="inverse" if minor_over_limit > 0 else "normal"
+                )
+        
+        # Detailed Defect Lists
+        if final_report['critical_defects']:
+            st.subheader("🚨 Critical Defects (Must Fix)")
+            for i, defect in enumerate(final_report['critical_defects'], 1):
+                st.error(f"**{i}.** {defect}")
+        
+        if final_report['major_defects']:
+            st.subheader("⚠️ Major Defects (Require Attention)")
+            for i, defect in enumerate(final_report['major_defects'], 1):
+                st.warning(f"**{i}.** {defect}")
+        
+        if final_report['minor_defects']:
+            st.subheader("ℹ️ Minor Defects (Monitor)")
+            for i, defect in enumerate(final_report['minor_defects'], 1):
+                st.info(f"**{i}.** {defect}")
+        
+        # Individual Angle Analysis
+        st.subheader("🔍 Detailed Analysis by View")
+        
+        for angle_name, analysis in zip(uploaded_images.keys(), analyses):
+            if analysis:
+                # Color code based on condition
+                condition_colors = {"Good": "🟢", "Fair": "🟡", "Poor": "🔴"}
+                condition_icon = condition_colors.get(analysis['overall_condition'], "⚫")
+                
+                with st.expander(f"{condition_icon} {angle_name} - {analysis['overall_condition']} (Confidence: {analysis['confidence']})"):
+                    col1, col2 = st.columns([2, 1])
+                    
+                    with col1:
+                        if analysis['critical_defects']:
+                            st.markdown("**🚨 Critical:** " + " | ".join(analysis['critical_defects']))
+                        if analysis['major_defects']:
+                            st.markdown("**⚠️ Major:** " + " | ".join(analysis['major_defects']))
+                        if analysis['minor_defects']:
+                            st.markdown("**ℹ️ Minor:** " + " | ".join(analysis['minor_defects']))
+                        if not any([analysis['critical_defects'], analysis['major_defects'], analysis['minor_defects']]):
+                            st.success("✅ No defects detected in this view")
+                    
+                    with col2:
+                        # Show the corresponding image thumbnail
+                        uploaded_file = uploaded_images[angle_name]
+                        thumb_image = Image.open(uploaded_file)
+                        st.image(thumb_image, caption=f"{angle_name}", width=150)
+                    
+                    if analysis.get('inspection_notes'):
+                        st.markdown(f"**Inspector Notes:** {analysis['inspection_notes']}")
+        
+        # Export Report Section
+        st.divider()
+        st.subheader("💾 Download PDF Report")
+        
+        # Prepare comprehensive report data
+        export_report = {
+            "inspection_summary": {
+                "inspection_date": order_info["inspection_date"],
+                "inspector": order_info["inspector"],
+                "customer": order_info["customer"],
+                "po_number": order_info["po_number"],
+                "style_number": order_info["style_number"],
+                "color": order_info["color"],
+                "final_result": final_report['result'],
+                "inspection_standard": "AQL 2.5"
+            },
+            "defect_summary": {
+                "critical_count": final_report['critical_count'],
+                "major_count": final_report['major_count'],
+                "minor_count": final_report['minor_count'],
+                "aql_limits": final_report['aql_limits']
+            },
+            "defect_details": {
+                "critical_defects": final_report['critical_defects'],
+                "major_defects": final_report['major_defects'],
+                "minor_defects": final_report['minor_defects']
+            },
+            "angle_analyses": analyses,
+            "decision_rationale": final_report['reason']
+        }
+        
+        # Generate PDF report
+        with st.spinner("Generating PDF report..."):
+            pdf_bytes = generate_pdf_report(export_report, po_number, style_number)
+        
+        if pdf_bytes:
+            st.download_button(
+                label="📄 Download PDF Report",
+                data=pdf_bytes,
+                file_name=f"QC_Report_{po_number}_{style_number}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+                type="primary"
+            )
+            st.success("✅ PDF report generated successfully!")
+        else:
+            st.error("❌ Failed to generate PDF report. Please try again.")
+
+# Footer
+st.markdown("---")
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.markdown("**🤖 AI Model:** OpenAI GPT-4o Vision")
+    
+with col2:
+    st.markdown("**📊 Standard:** AQL 2.5 Quality Control")
+    
+with col3:
+    st.markdown("**🏢 Company:** Grand Step (H.K.) Ltd")
+
+st.markdown("""
+<div style='text-align: center; color: #666; margin-top: 2rem; font-size: 0.9rem;'>
+    <em>AI Footwear Quality Control Inspector - Transforming Manufacturing QC with Computer Vision</em><br>
+    <strong>Grand Step (H.K.) Ltd</strong> | Tel: 86-769-8308 0888-381 | www.grandstep.com
+</div>
+""", unsafe_allow_html=True)yle_number = st.text_input("Style Number", value="GS1412401B", help="Product Style Code")
+    color = st.text_input("Color", value="PPB", help="Product Color Code")
+    
+with col3:
+    inspector = st.text_input("Inspector Name", value="AI Inspector", help="QC Inspector Name")
+    inspection_date = st.date_input("Inspection Date", value=datetime.now().date())
+
+st.divider()
+
+# Image Upload Section with 4 separate angle options
+st.header("Upload Shoe Images by Angle")
+st.markdown("Upload clear, well-lit images from each angle for comprehensive quality inspection:")
+
+# Create 4 columns for the 4 angles
+col1, col2, col3, col4 = st.columns(4)
+
+uploaded_images = {}
+angle_names = ["Front View", "Back View", "Left Side", "Right Side"]
+
+with col1:
+    st.markdown('<div class="angle-header">📐 Front View</div>', unsafe_allow_html=True)
+    front_image = st.file_uploader(
+        "Upload Front View",
+        type=['png', 'jpg', 'jpeg'],
+        key="front",
+        help="Toe cap, laces, tongue view"
+    )
+    if front_image:
+        uploaded_images["Front View"] = front_image
+        st.image(Image.open(front_image), caption="Front View", use_container_width=True)
+
+with col2:
+    st
