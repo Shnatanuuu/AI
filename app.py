@@ -817,6 +817,38 @@ with col1:
     customer = st.text_input("Customer", value="MIA", help="Customer/Brand Name")
     
 with col2:
+    style_number = st.text_input("Style Number", value="GS1412401B", help="Product Style Code")
+    color = st.text_input("Color", value="PPB", help="Product Color Code")
+    
+with col3:
+    inspector = st.text_input("Inspector Name", value="AI Inspector", help="QC Inspector Name")
+    inspection_date = st.date_input("Inspection Date", value=datetime.now().date())
+
+st.divider()
+
+# Image Upload Section with 4 separate angle options
+st.header("Upload Shoe Images by Angle")
+st.markdown("Upload clear, well-lit images from each angle for comprehensive quality inspection:")
+
+# Create 4 columns for the 4 angles
+col1, col2, col3, col4 = st.columns(4)
+
+uploaded_images = {}
+angle_names = ["Front View", "Back View", "Left Side", "Right Side"]
+
+with col1:
+    st.markdown('<div class="angle-header">📐 Front View</div>', unsafe_allow_html=True)
+    front_image = st.file_uploader(
+        "Upload Front View",
+        type=['png', 'jpg', 'jpeg'],
+        key="front",
+        help="Toe cap, laces, tongue view"
+    )
+    if front_image:
+        uploaded_images["Front View"] = front_image
+        st.image(Image.open(front_image), caption="Front View", use_container_width=True)
+
+with col2:
     st.markdown('<div class="angle-header">🔄 Back View</div>', unsafe_allow_html=True)
     back_image = st.file_uploader(
         "Upload Back View",
@@ -1072,36 +1104,4 @@ st.markdown("""
     <em>AI Footwear Quality Control Inspector - Transforming Manufacturing QC with Computer Vision</em><br>
     <strong>Grand Step (H.K.) Ltd</strong> | Tel: 86-769-8308 0888-381 | www.grandstep.com
 </div>
-""", unsafe_allow_html=True)yle_number = st.text_input("Style Number", value="GS1412401B", help="Product Style Code")
-    color = st.text_input("Color", value="PPB", help="Product Color Code")
-    
-with col3:
-    inspector = st.text_input("Inspector Name", value="AI Inspector", help="QC Inspector Name")
-    inspection_date = st.date_input("Inspection Date", value=datetime.now().date())
-
-st.divider()
-
-# Image Upload Section with 4 separate angle options
-st.header("Upload Shoe Images by Angle")
-st.markdown("Upload clear, well-lit images from each angle for comprehensive quality inspection:")
-
-# Create 4 columns for the 4 angles
-col1, col2, col3, col4 = st.columns(4)
-
-uploaded_images = {}
-angle_names = ["Front View", "Back View", "Left Side", "Right Side"]
-
-with col1:
-    st.markdown('<div class="angle-header">📐 Front View</div>', unsafe_allow_html=True)
-    front_image = st.file_uploader(
-        "Upload Front View",
-        type=['png', 'jpg', 'jpeg'],
-        key="front",
-        help="Toe cap, laces, tongue view"
-    )
-    if front_image:
-        uploaded_images["Front View"] = front_image
-        st.image(Image.open(front_image), caption="Front View", use_container_width=True)
-
-with col2:
-    st
+""", unsafe_allow_html=True)
