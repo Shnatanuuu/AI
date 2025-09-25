@@ -11,39 +11,21 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-# Set up the page
-st.set_page_config(
-    page_title="AI Shoe QC Inspector",
-    page_icon="👟",
-    layout="wide"
-)
-
-st.title("🔍 AI Footwear Quality Control Inspector")
-st.markdown("*Powered by OpenAI GPT-4 Vision API*")
-
-# Initialize OpenAI client with environment variable
 @st.cache_resource
 def initialize_openai_client():
     """Initialize OpenAI client with API key from environment variables"""
-    api_key = st.secrets["OPENAI_API_KEY"]
-    if not api_key:
-        st.error("❌ OPENAI_API_KEY not found in environment variables!")
-        st.markdown("""
-        **Setup Instructions:**
-        1. Create a `.env` file in your project directory
-        2. Add your OpenAI API key: `OPENAI_API_KEY=your_api_key_here`
-        3. Restart the application
-        
-        [Get API Key →](https://platform.openai.com/api-keys)
-        """)
-        st.stop()
+    
+    # Fetch API key from .env or Streamlit secrets
+    api_key = os.getenv("OPENAI_API_KEY")
+    
     
     try:
-        client = openai.OpenAI(api_key=api_key)
-        return client
+        # Initialize client
+        openai.api_key = api_key
+        return openai
     except Exception as e:
-        st.error(f"❌ Failed to initialize OpenAI client: {str(e)}")
-        st.stop()
+        Print("hello")
+
 
 # Initialize the client
 openai_client = initialize_openai_client()
