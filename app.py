@@ -808,7 +808,7 @@ with col1:
     )
     if front_image:
         uploaded_images["Front View"] = front_image
-        st.image(Image.open(front_image), caption="Front View", use_column_width=True)
+        st.image(Image.open(front_image), caption="Front View", use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 with col2:
@@ -822,7 +822,7 @@ with col2:
     )
     if back_image:
         uploaded_images["Back View"] = back_image
-        st.image(Image.open(back_image), caption="Back View", use_column_width=True)
+        st.image(Image.open(back_image), caption="Back View", use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 with col3:
@@ -836,7 +836,7 @@ with col3:
     )
     if left_image:
         uploaded_images["Left Side"] = left_image
-        st.image(Image.open(left_image), caption="Left Side", use_column_width=True)
+        st.image(Image.open(left_image), caption="Left Side", use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 with col4:
@@ -850,7 +850,7 @@ with col4:
     )
     if right_image:
         uploaded_images["Right Side"] = right_image
-        st.image(Image.open(right_image), caption="Right Side", use_column_width=True)
+        st.image(Image.open(right_image), caption="Right Side", use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 # Upload status
@@ -1298,7 +1298,7 @@ if len(uploaded_images) >= 2:
                             background: {bg_color};
                         ">
                         """, unsafe_allow_html=True)
-                        st.image(thumb_image, caption=f"{angle_name}", use_column_width=True)
+                        st.image(thumb_image, caption=f"{angle_name}", use_container_width=True)
                         st.markdown('</div>', unsafe_allow_html=True)
         
         # PDF Export Section
