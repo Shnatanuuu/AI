@@ -291,9 +291,10 @@ st.markdown("""
 # Initialize OpenAI client from environment variable
 @st.cache_resource
 def get_openai_client():
-    api_key = os.getenv("OPENAI_API_KEY")
+    # Priority: environment > Streamlit secrets
+    api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
     if not api_key:
-        st.error("OpenAI API key not found in environment variables. Please check your .env file.")
+        st.error("❌ OpenAI API key not found. Please set it in .env (local) or Secrets (cloud).")
         st.stop()
     return openai.OpenAI(api_key=api_key)
 
