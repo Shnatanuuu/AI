@@ -820,11 +820,18 @@ st.markdown('<div class="section-header">📸 Multi-Angle Image Analysis</div>',
 
 # Upload instruction
 st.markdown("""
-<div class="instruction-box">
-    <div class="instruction-title">
+<div style="
+    background: rgba(102, 126, 234, 0.1);
+    border: 1px solid rgba(102, 126, 234, 0.2);
+    border-radius: 16px;
+    padding: 1.5rem;
+    text-align: center;
+    margin-bottom: 1.5rem;
+">
+    <div style="font-size: 1.2rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;">
         Multi-Angle Quality Inspection
     </div>
-    <div class="instruction-subtitle">
+    <div style="color: #6b7280; font-size: 0.95rem;">
         Upload high-resolution images from different angles for comprehensive analysis
     </div>
 </div>
