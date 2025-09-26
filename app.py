@@ -146,17 +146,62 @@ st.markdown("""
     }
     
     /* Form inputs */
+    /* Form inputs - Updated with explicit text colors for mobile compatibility */
+.stTextInput > div > div > input,
+.stSelectbox > div > div > div,
+.stDateInput > div > div > div > div {
+    border: 2px solid rgba(226, 232, 240, 0.8) !important;
+    border-radius: 8px !important;
+    padding: 0.8rem 1rem !important;
+    font-size: 0.95rem !important;
+    background: rgba(255, 255, 255, 0.95) !important;
+    color: #374151 !important; /* Dark gray text for good contrast */
+    transition: all 0.3s var(--animation-smooth) !important;
+}
+
+/* Additional mobile-specific input styling */
+.stTextInput > div > div > input::placeholder,
+.stSelectbox > div > div > div input::placeholder {
+    color: #9ca3af !important; /* Light gray for placeholder text */
+}
+
+/* Focus states with proper text color */
+.stTextInput > div > div > input:focus,
+.stSelectbox > div > div > div:focus-within,
+.stDateInput > div > div > div > div:focus-within {
+    border-color: #667eea !important;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+    color: #1f2937 !important; /* Even darker text when focused */
+}
+
+/* Specific fixes for select dropdowns */
+.stSelectbox > div > div > div {
+    color: #374151 !important;
+}
+
+.stSelectbox > div > div > div > div {
+    color: #374151 !important;
+}
+
+/* Date input specific styling */
+.stDateInput > div > div > div > div input {
+    color: #374151 !important;
+}
+
+/* Mobile-specific overrides */
+@media (max-width: 768px) {
     .stTextInput > div > div > input,
     .stSelectbox > div > div > div,
     .stDateInput > div > div > div > div {
-        border: 2px solid rgba(226, 232, 240, 0.8) !important;
-        border-radius: 8px !important;
-        padding: 0.8rem 1rem !important;
-        font-size: 0.95rem !important;
-        background: rgba(255, 255, 255, 0.95) !important;
-        transition: all 0.3s var(--animation-smooth) !important;
+        color: #1f2937 !important; /* Even more contrast on mobile */
+        font-weight: 500 !important; /* Slightly bolder for better visibility */
     }
     
+    .stTextInput > div > div > input::placeholder,
+    .stSelectbox > div > div > div input::placeholder {
+        color: #6b7280 !important; /* Darker placeholder on mobile */
+    }
+}
     .stTextInput > div > div > input:focus,
     .stSelectbox > div > div > div:focus-within,
     .stDateInput > div > div > div > div:focus-within {
