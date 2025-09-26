@@ -820,18 +820,11 @@ st.markdown('<div class="section-header">📸 Multi-Angle Image Analysis</div>',
 
 # Upload instruction
 st.markdown("""
-<div style="
-    background: rgba(102, 126, 234, 0.1);
-    border: 1px solid rgba(102, 126, 234, 0.2);
-    border-radius: 16px;
-    padding: 1.5rem;
-    text-align: center;
-    margin-bottom: 1.5rem;
-">
-    <div style="font-size: 1.2rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;">
+<div class="instruction-box">
+    <div class="instruction-title">
         Multi-Angle Quality Inspection
     </div>
-    <div style="color: #6b7280; font-size: 0.95rem;">
+    <div class="instruction-subtitle">
         Upload high-resolution images from different angles for comprehensive analysis
     </div>
 </div>
@@ -847,7 +840,7 @@ with col1:
     st.markdown('<div class="upload-container">', unsafe_allow_html=True)
     front_image = st.file_uploader(
         "Upload Front View",
-        type=['png', 'jpg', 'jpeg', 'heic', 'heif'],
+        type=['png', 'jpg', 'jpeg'],
         key="front",
         help="Toe cap, laces, tongue view"
     )
@@ -861,7 +854,7 @@ with col2:
     st.markdown('<div class="upload-container">', unsafe_allow_html=True)
     back_image = st.file_uploader(
         "Upload Back View",
-        type=['png', 'jpg', 'jpeg', 'heic', 'heif'],
+        type=['png', 'jpg', 'jpeg'],
         key="back",
         help="Heel, counter, back seam view"
     )
@@ -875,7 +868,7 @@ with col3:
     st.markdown('<div class="upload-container">', unsafe_allow_html=True)
     left_image = st.file_uploader(
         "Upload Left Side",
-        type=['png', 'jpg', 'jpeg', 'heic', 'heif'],
+        type=['png', 'jpg', 'jpeg'],
         key="left",
         help="Left profile view"
     )
@@ -889,7 +882,7 @@ with col4:
     st.markdown('<div class="upload-container">', unsafe_allow_html=True)
     right_image = st.file_uploader(
         "Upload Right Side",
-        type=['png', 'jpg', 'jpeg', 'heic', 'heif'],
+        type=['png', 'jpg', 'jpeg'],
         key="right",
         help="Right profile view"
     )
