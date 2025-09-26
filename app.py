@@ -847,7 +847,7 @@ with col1:
     st.markdown('<div class="upload-container">', unsafe_allow_html=True)
     front_image = st.file_uploader(
         "Upload Front View",
-        type=['png', 'jpg', 'jpeg'],
+        type=['png', 'jpg', 'jpeg', 'heic', 'heif'],
         key="front",
         help="Toe cap, laces, tongue view"
     )
@@ -861,7 +861,7 @@ with col2:
     st.markdown('<div class="upload-container">', unsafe_allow_html=True)
     back_image = st.file_uploader(
         "Upload Back View",
-        type=['png', 'jpg', 'jpeg'],
+        type=['png', 'jpg', 'jpeg', 'heic', 'heif'],
         key="back",
         help="Heel, counter, back seam view"
     )
@@ -875,7 +875,7 @@ with col3:
     st.markdown('<div class="upload-container">', unsafe_allow_html=True)
     left_image = st.file_uploader(
         "Upload Left Side",
-        type=['png', 'jpg', 'jpeg'],
+        type=['png', 'jpg', 'jpeg', 'heic', 'heif'],
         key="left",
         help="Left profile view"
     )
@@ -889,7 +889,7 @@ with col4:
     st.markdown('<div class="upload-container">', unsafe_allow_html=True)
     right_image = st.file_uploader(
         "Upload Right Side",
-        type=['png', 'jpg', 'jpeg'],
+        type=['png', 'jpg', 'jpeg', 'heic', 'heif'],
         key="right",
         help="Right profile view"
     )
