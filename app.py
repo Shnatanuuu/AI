@@ -64,7 +64,7 @@ TRANSLATIONS = {
         "view_ai_defects": "View AI Detected Defects",
         "type_defect": "Type defect description:",
         "enter_defect": "Enter defect...",
-        "add_text": "Add (Text)",
+        "add_text": "Add",
         "defect_added": "defect added!",
         "additional_notes": "Additional notes:",
         "notes_saved": "Notes saved!",
@@ -110,7 +110,7 @@ TRANSLATIONS = {
         "view_ai_defects": "查看AI检测到的缺陷",
         "type_defect": "输入缺陷描述:",
         "enter_defect": "输入缺陷...",
-        "add_text": "添加（文本）",
+        "add_text": "添加",
         "defect_added": "缺陷已添加!",
         "additional_notes": "附加备注:",
         "notes_saved": "备注已保存!",
@@ -156,7 +156,7 @@ TRANSLATIONS = {
         "view_ai_defects": "查看AI檢測到的缺陷",
         "type_defect": "輸入缺陷描述:",
         "enter_defect": "輸入缺陷...",
-        "add_text": "添加（文本）",
+        "add_text": "添加",
         "defect_added": "缺陷已添加!",
         "additional_notes": "附加備註:",
         "notes_saved": "備註已保存!",
@@ -179,18 +179,31 @@ if 'ui_language' not in st.session_state:
     st.session_state.ui_language = "English"
 if 'pdf_language' not in st.session_state:
     st.session_state.pdf_language = "English"
-if 'original_ai_defects' not in st.session_state:
-    st.session_state.original_ai_defects = {}
-if 'original_qc_defects' not in st.session_state:
-    st.session_state.original_qc_defects = {}
-if 'defect_translations' not in st.session_state:
-    st.session_state.defect_translations = {}
+
+# Core defect storage - always in English with unique IDs
+if 'defect_store' not in st.session_state:
+    st.session_state.defect_store = {
+        'ai_critical': [],
+        'ai_major': [],
+        'ai_minor': [],
+        'qc_critical': [],
+        'qc_major': [],
+        'qc_minor': []
+    }
+
+# Translation cache
+if 'translation_cache' not in st.session_state:
+    st.session_state.translation_cache = {}
+
+# Store QC notes in English
+if 'qc_notes_english' not in st.session_state:
+    st.session_state.qc_notes_english = ''
 
 def t(key):
-    """Translation helper"""
+    """Translation helper for UI elements"""
     return TRANSLATIONS[st.session_state.ui_language].get(key, key)
 
-# CSS Styling with mobile optimization
+# CSS Styling
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -243,87 +256,21 @@ st.markdown("""
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
     
-    .critical-defect {
-        border-left-color: #ef4444;
-        background: #fef2f2;
-    }
+    .critical-defect { border-left-color: #ef4444; background: #fef2f2; }
+    .major-defect { border-left-color: #f59e0b; background: #fffbeb; }
+    .minor-defect { border-left-color: #3b82f6; background: #eff6ff; }
     
-    .major-defect {
-        border-left-color: #f59e0b;
-        background: #fffbeb;
-    }
-    
-    .minor-defect {
-        border-left-color: #3b82f6;
-        background: #eff6ff;
-    }
-    
-    /* Mobile Responsive */
     @media (max-width: 768px) {
-        .main .block-container {
-            padding: 0.5rem;
-        }
-        
-        .hero-section {
-            padding: 1.5rem 0.5rem;
-            margin-bottom: 1rem;
-        }
-        
-        .section-header {
-            padding: 0.75rem;
-            margin: 1rem 0 0.5rem 0;
-            font-size: 1rem;
-        }
-        
-        .metric-card {
-            padding: 0.75rem;
-            margin-bottom: 0.75rem;
-        }
-        
-        .metric-number {
-            font-size: 1.5rem !important;
-            font-weight: 800 !important;
-        }
-        
-        .metric-label {
-            font-size: 0.9rem !important;
-            font-weight: 600 !important;
-        }
-        
-        .defect-item {
-            padding: 0.5rem;
-            margin: 0.25rem 0;
-            font-size: 0.9rem;
-        }
-        
-        /* Ensure text is readable on mobile */
-        .stButton button {
-            width: 100%;
-            font-size: 0.9rem;
-            padding: 0.5rem;
-        }
-        
-        .stTextInput input, .stTextArea textarea {
-            font-size: 0.9rem;
-        }
-        
-        .stSelectbox select {
-            font-size: 0.9rem;
-        }
+        .main .block-container { padding: 0.5rem; }
+        .hero-section { padding: 1.5rem 0.5rem; }
+        .section-header { padding: 0.75rem; font-size: 1rem; }
+        .metric-card { padding: 0.75rem; }
+        .metric-number { font-size: 1.5rem !important; }
+        .defect-item { padding: 0.5rem; font-size: 0.9rem; }
     }
     
-    /* Ensure good contrast for metrics */
-    .metric-number {
-        font-size: 2rem;
-        font-weight: 800;
-        margin-bottom: 0.25rem;
-    }
-    
-    .metric-label {
-        font-size: 1rem;
-        font-weight: 600;
-        color: #374151;
-    }
+    .metric-number { font-size: 2rem; font-weight: 800; margin-bottom: 0.25rem; }
+    .metric-label { font-size: 1rem; font-weight: 600; color: #374151; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -338,12 +285,16 @@ def get_openai_client():
 client = get_openai_client()
 
 def translate_text_with_openai(text, target_language):
-    """Translate text using OpenAI with proper error handling"""
-    if target_language == "English" or not text or text.strip() == "":
+    """Translate text using OpenAI with caching"""
+    if not text or text.strip() == "" or target_language == "English":
         return text
     
+    cache_key = (text, target_language)
+    if cache_key in st.session_state.translation_cache:
+        return st.session_state.translation_cache[cache_key]
+    
     lang_map = {
-        "Mandarin": "Simplified Chinese",
+        "Mandarin": "Simplified Chinese (Mandarin)",
         "Cantonese": "Traditional Chinese (Cantonese style)"
     }
     
@@ -352,128 +303,66 @@ def translate_text_with_openai(text, target_language):
             model="gpt-4o-mini",
             messages=[{
                 "role": "user",
-                "content": f"Translate the following text to {lang_map[target_language]}. Return ONLY the translation, nothing else:\n\n{text}"
+                "content": f"Translate to {lang_map[target_language]}. Return ONLY the translation:\n\n{text}"
             }],
             max_tokens=500,
             temperature=0.1
         )
         translated = response.choices[0].message.content.strip()
-        return translated if translated and translated != text else text
+        st.session_state.translation_cache[cache_key] = translated
+        return translated
     except Exception as e:
-        st.error(f"Translation error for '{text}': {str(e)}")
+        st.warning(f"Translation error: {str(e)}")
         return text
 
-def translate_defects_list(defects, target_language):
-    """Translate a list of defects using OpenAI"""
-    if target_language == "English" or not defects:
-        return defects
+def get_translated_defects(defect_category, target_language):
+    """Get defects from store translated to target language"""
+    defects = st.session_state.defect_store.get(defect_category, [])
+    if target_language == "English":
+        return [defect_id for defect_id, defect_text in defects], [defect_text for defect_id, defect_text in defects]
     
-    translated_defects = []
-    for defect in defects:
-        if defect and defect.strip():
-            # Create a unique key for this defect and target language
-            translation_key = f"{defect}_{target_language}"
-            
-            if translation_key not in st.session_state.defect_translations:
-                # Translate using OpenAI
-                translated = translate_text_with_openai(defect, target_language)
-                st.session_state.defect_translations[translation_key] = translated
-                translated_defects.append(translated)
-            else:
-                translated_defects.append(st.session_state.defect_translations[translation_key])
-        else:
-            translated_defects.append(defect)
+    translated = []
+    ids = []
+    for defect_id, english_text in defects:
+        ids.append(defect_id)
+        translated.append(translate_text_with_openai(english_text, target_language))
     
-    return translated_defects
+    return ids, translated
 
-def store_original_defects(ai_defects, qc_defects):
-    """Store original defects in English"""
-    # Store AI defects
-    if 'critical' in ai_defects:
-        for defect in ai_defects['critical']:
-            if defect and defect not in st.session_state.original_ai_defects:
-                st.session_state.original_ai_defects[defect] = defect
-    if 'major' in ai_defects:
-        for defect in ai_defects['major']:
-            if defect and defect not in st.session_state.original_ai_defects:
-                st.session_state.original_ai_defects[defect] = defect
-    if 'minor' in ai_defects:
-        for defect in ai_defects['minor']:
-            if defect and defect not in st.session_state.original_ai_defects:
-                st.session_state.original_ai_defects[defect] = defect
-    
-    # Store QC defects
-    if 'critical' in qc_defects:
-        for defect in qc_defects['critical']:
-            if defect and defect not in st.session_state.original_qc_defects:
-                st.session_state.original_qc_defects[defect] = defect
-    if 'major' in qc_defects:
-        for defect in qc_defects['major']:
-            if defect and defect not in st.session_state.original_qc_defects:
-                st.session_state.original_qc_defects[defect] = defect
-    if 'minor' in qc_defects:
-        for defect in qc_defects['minor']:
-            if defect and defect not in st.session_state.original_qc_defects:
-                st.session_state.original_qc_defects[defect] = defect
+def add_defect_to_store(category, english_text):
+    """Add a new defect to the store"""
+    defect_id = f"{category}_{len(st.session_state.defect_store[category])}_{datetime.now().timestamp()}"
+    st.session_state.defect_store[category].append((defect_id, english_text))
+    return defect_id
 
-def get_translated_defects_for_language(target_language):
-    """Get all defects translated to target language"""
-    translated_ai_defects = {
-        'critical': [],
-        'major': [],
-        'minor': []
-    }
-    translated_qc_defects = {
-        'critical': [],
-        'major': [],
-        'minor': []
-    }
-    
-    # Translate AI defects
-    for defect_type in ['critical', 'major', 'minor']:
-        original_defects = []
-        if defect_type in st.session_state.original_ai_defects:
-            # Get all defects of this type
-            for defect in st.session_state.original_ai_defects.values():
-                # This is simplified - in real implementation, you'd need to track which defects belong to which type
-                original_defects.append(defect)
-        
-        if original_defects:
-            translated_ai_defects[defect_type] = translate_defects_list(original_defects, target_language)
-    
-    # Translate QC defects
-    for defect_type in ['critical', 'major', 'minor']:
-        original_defects = []
-        if defect_type in st.session_state.original_qc_defects:
-            for defect in st.session_state.original_qc_defects.values():
-                original_defects.append(defect)
-        
-        if original_defects:
-            translated_qc_defects[defect_type] = translate_defects_list(original_defects, target_language)
-    
-    return translated_ai_defects, translated_qc_defects
+def remove_defect_from_store(category, defect_id):
+    """Remove a defect by ID"""
+    st.session_state.defect_store[category] = [
+        (did, text) for did, text in st.session_state.defect_store[category] 
+        if did != defect_id
+    ]
 
 def encode_image(image):
     buffer = io.BytesIO()
     image.save(buffer, format="JPEG")
     return base64.b64encode(buffer.getvalue()).decode()
 
-def analyze_shoe_image(client, image, angle_name, style_number="", color="", po_number="", target_language="English"):
+def analyze_shoe_image(client, image, angle_name, style_number="", color="", po_number=""):
+    """Analyze image - always returns defects in English"""
     base64_image = encode_image(image)
     
-    # Always request analysis in English to get consistent original defects
-    prompt = f"""You are an expert footwear QC inspector. Analyze this {angle_name} image.
+    prompt = f"""You are an expert footwear QC inspector analyzing {angle_name} view.
 Product: {style_number}, Color: {color}, PO: {po_number}
 
-Return ONLY valid JSON:
+Inspect for defects and return ONLY valid JSON in English:
 {{
     "angle": "{angle_name}",
-    "critical_defects": ["list defects in English"],
-    "major_defects": ["list defects in English"], 
-    "minor_defects": ["list defects in English"],
+    "critical_defects": ["exact location + defect type"],
+    "major_defects": ["exact location + defect type"], 
+    "minor_defects": ["exact location + defect type"],
     "overall_condition": "Good/Fair/Poor",
     "confidence": "High/Medium/Low",
-    "inspection_notes": "notes in English"
+    "inspection_notes": "brief notes"
 }}"""
     
     try:
@@ -495,15 +384,18 @@ Return ONLY valid JSON:
         end = result_text.rfind('}') + 1
         
         if start != -1 and end > start:
-            analysis_result = json.loads(result_text[start:end])
-            return analysis_result
-        return {"angle": angle_name, "critical_defects": [], "major_defects": [], "minor_defects": [], 
-                "overall_condition": "Fair", "confidence": "Low", "inspection_notes": "Parse failed"}
+            return json.loads(result_text[start:end])
+        
+        return {
+            "angle": angle_name, "critical_defects": [], "major_defects": [], "minor_defects": [], 
+            "overall_condition": "Fair", "confidence": "Low", "inspection_notes": "Parse failed"
+        }
     except Exception as e:
-        st.error(f"Error: {str(e)}")
+        st.error(f"Analysis error: {str(e)}")
         return None
 
-def generate_qc_report(analyses, order_info):
+def generate_qc_report(analyses):
+    """Generate initial AI report from analyses"""
     all_critical, all_major, all_minor = [], [], []
     
     for analysis in analyses:
@@ -515,6 +407,14 @@ def generate_qc_report(analyses, order_info):
     all_critical = list(dict.fromkeys(all_critical))
     all_major = list(dict.fromkeys(all_major))
     all_minor = list(dict.fromkeys(all_minor))
+    
+    st.session_state.defect_store['ai_critical'] = [(f"ai_c_{i}", d) for i, d in enumerate(all_critical)]
+    st.session_state.defect_store['ai_major'] = [(f"ai_m_{i}", d) for i, d in enumerate(all_major)]
+    st.session_state.defect_store['ai_minor'] = [(f"ai_n_{i}", d) for i, d in enumerate(all_minor)]
+    
+    st.session_state.defect_store['qc_critical'] = st.session_state.defect_store['ai_critical'].copy()
+    st.session_state.defect_store['qc_major'] = st.session_state.defect_store['ai_major'].copy()
+    st.session_state.defect_store['qc_minor'] = st.session_state.defect_store['ai_minor'].copy()
     
     aql_limits = {"critical": 0, "major": 10, "minor": 14}
     
@@ -528,14 +428,31 @@ def generate_qc_report(analyses, order_info):
         result, reason = "ACCEPT", "All defects within AQL 2.5 limits"
     
     return {
-        "result": result, "reason": reason,
-        "critical_count": len(all_critical), "major_count": len(all_major), "minor_count": len(all_minor),
-        "critical_defects": all_critical, "major_defects": all_major, "minor_defects": all_minor,
+        "result": result,
+        "reason": reason,
+        "critical_count": len(all_critical),
+        "major_count": len(all_major),
+        "minor_count": len(all_minor),
         "aql_limits": aql_limits
     }
 
-def generate_multilingual_pdf(export_report, po_number, style_number, language):
-    """Generate PDF with proper language support"""
+def calculate_final_decision():
+    """Calculate final decision based on QC defects"""
+    qc_critical_count = len(st.session_state.defect_store['qc_critical'])
+    qc_major_count = len(st.session_state.defect_store['qc_major'])
+    qc_minor_count = len(st.session_state.defect_store['qc_minor'])
+    
+    if qc_critical_count > 0:
+        return "REJECT", f"Critical defects ({qc_critical_count}) - Zero tolerance"
+    elif qc_major_count > 10:
+        return "REJECT", f"Major defects ({qc_major_count}) exceed AQL limit (10)"
+    elif qc_minor_count > 14:
+        return "REWORK", f"Minor defects ({qc_minor_count}) exceed AQL limit (14)"
+    else:
+        return "ACCEPT", "All defects within AQL 2.5 limits"
+
+def generate_multilingual_pdf(order_info, language):
+    """Generate PDF with proper multilingual support"""
     try:
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, 
@@ -543,7 +460,6 @@ def generate_multilingual_pdf(export_report, po_number, style_number, language):
         elements = []
         styles = getSampleStyleSheet()
         
-        # Register Unicode CID fonts for Chinese
         base_font = 'Helvetica'
         bold_font = 'Helvetica-Bold'
         
@@ -552,49 +468,38 @@ def generate_multilingual_pdf(export_report, po_number, style_number, language):
                 pdfmetrics.registerFont(UnicodeCIDFont('STSong-Light'))
                 base_font = 'STSong-Light'
                 bold_font = 'STSong-Light'
-            except Exception as e:
-                st.warning(f"Chinese font registration failed, using ASCII fallback: {e}")
+            except:
+                pass
         
-        # Colors
         brand_blue = colors.Color(0.4, 0.49, 0.91)
         success_green = colors.Color(0.31, 0.78, 0.47)
         warning_orange = colors.Color(1.0, 0.6, 0.0)
         danger_red = colors.Color(1.0, 0.42, 0.42)
         light_gray = colors.Color(0.97, 0.97, 0.97)
         
-        # Styles
         title_style = ParagraphStyle('Title', parent=styles['Normal'], fontSize=22, alignment=TA_CENTER,
-                                     textColor=brand_blue, fontName=bold_font, spaceAfter=12, spaceBefore=10)
-        
+                                     textColor=brand_blue, fontName=bold_font, spaceAfter=12)
         subtitle_style = ParagraphStyle('Subtitle', parent=styles['Normal'], fontSize=12, alignment=TA_CENTER,
                                         textColor=colors.Color(0.3, 0.3, 0.3), fontName=base_font, spaceAfter=8)
-        
         section_style = ParagraphStyle('Section', parent=styles['Heading2'], fontSize=14, spaceAfter=10,
                                       spaceBefore=15, textColor=brand_blue, fontName=bold_font, alignment=TA_CENTER)
-        
         body_style = ParagraphStyle('Body', parent=styles['Normal'], fontSize=10, spaceAfter=6,
                                     fontName=base_font, textColor=colors.black)
         
-        inspection_data = export_report['inspection_summary']
-        defect_data = export_report['defect_summary']
-        defects = export_report['defect_details']
-        
-        # Header with proper spacing
         elements.append(Paragraph("GRAND STEP (H.K.) LTD", title_style))
         elements.append(Spacer(1, 12))
         elements.append(Paragraph("Professional Footwear Manufacturing & Quality Control", subtitle_style))
         elements.append(Paragraph("AI-Powered Quality Inspection System", subtitle_style))
         elements.append(Spacer(1, 20))
         
-        # Title
         title_text = translate_text_with_openai("QUALITY CONTROL INSPECTION REPORT", language)
-        report_title = ParagraphStyle('ReportTitle', parent=title_style, fontSize=16, textColor=colors.black, fontName=bold_font)
+        report_title = ParagraphStyle('ReportTitle', parent=title_style, fontSize=16, textColor=colors.black)
         elements.append(Paragraph(title_text, report_title))
         elements.append(Spacer(1, 20))
         
-        # Final Result
-        result_text = translate_text_with_openai(inspection_data['final_result'], language)
-        result_color = success_green if inspection_data['final_result']=='ACCEPT' else (danger_red if inspection_data['final_result']=='REJECT' else warning_orange)
+        final_result, final_reason = calculate_final_decision()
+        result_text = translate_text_with_openai(final_result, language)
+        result_color = success_green if final_result=='ACCEPT' else (danger_red if final_result=='REJECT' else warning_orange)
         
         result_style = ParagraphStyle('Result', parent=styles['Normal'], fontSize=18, alignment=TA_CENTER,
                                      fontName=bold_font, spaceAfter=10, textColor=result_color)
@@ -602,23 +507,22 @@ def generate_multilingual_pdf(export_report, po_number, style_number, language):
         final_label = translate_text_with_openai("FINAL QC DECISION", language)
         elements.append(Paragraph(f"{final_label}: {result_text}", result_style))
         
-        rationale_text = translate_text_with_openai(export_report['decision_rationale'], language)
+        rationale_text = translate_text_with_openai(final_reason, language)
         elements.append(Paragraph(rationale_text, body_style))
         elements.append(Spacer(1, 20))
         
-        # Order Information
         order_label = translate_text_with_openai("ORDER INFORMATION", language)
         elements.append(Paragraph(order_label, section_style))
         elements.append(Spacer(1, 10))
         
         order_data = [
-            [translate_text_with_openai('PO Number', language), inspection_data['po_number']],
-            [translate_text_with_openai('Style', language), inspection_data['style_number']],
-            [translate_text_with_openai('Color', language), inspection_data['color']],
-            [translate_text_with_openai('Customer', language), inspection_data['customer']],
-            [translate_text_with_openai('Inspector', language), inspection_data['inspector']],
-            [translate_text_with_openai('Date', language), inspection_data['inspection_date']],
-            [translate_text_with_openai('Standard', language), inspection_data['inspection_standard']]
+            [translate_text_with_openai('PO Number', language), order_info['po_number']],
+            [translate_text_with_openai('Style', language), order_info['style_number']],
+            [translate_text_with_openai('Color', language), order_info['color']],
+            [translate_text_with_openai('Customer', language), order_info['customer']],
+            [translate_text_with_openai('Inspector', language), order_info['inspector']],
+            [translate_text_with_openai('Date', language), order_info['inspection_date']],
+            [translate_text_with_openai('Standard', language), "AQL 2.5"]
         ]
         
         order_table = Table(order_data, colWidths=[5*cm, 9*cm])
@@ -637,31 +541,31 @@ def generate_multilingual_pdf(export_report, po_number, style_number, language):
         elements.append(order_table)
         elements.append(Spacer(1, 25))
         
-        # AI Analysis Section
         ai_label = translate_text_with_openai("AI INSPECTION FINDINGS", language)
         elements.append(Paragraph(ai_label, section_style))
         elements.append(Spacer(1, 10))
         
-        ai_header = [
+        ai_critical_count = len(st.session_state.defect_store['ai_critical'])
+        ai_major_count = len(st.session_state.defect_store['ai_major'])
+        ai_minor_count = len(st.session_state.defect_store['ai_minor'])
+        
+        ai_data = [
             [translate_text_with_openai('Defect Type', language), 
              translate_text_with_openai('AI Count', language), 
              translate_text_with_openai('AQL Limit', language), 
-             translate_text_with_openai('Status', language)]
-        ]
-        
-        ai_data = [
+             translate_text_with_openai('Status', language)],
             [translate_text_with_openai('Critical', language), 
-             str(defect_data['ai_critical_count']), '0',
-             translate_text_with_openai('FAIL' if defect_data['ai_critical_count']>0 else 'PASS', language)],
+             str(ai_critical_count), '0',
+             translate_text_with_openai('FAIL' if ai_critical_count>0 else 'PASS', language)],
             [translate_text_with_openai('Major', language), 
-             str(defect_data['ai_major_count']), '10',
-             translate_text_with_openai('FAIL' if defect_data['ai_major_count']>10 else 'PASS', language)],
+             str(ai_major_count), '10',
+             translate_text_with_openai('FAIL' if ai_major_count>10 else 'PASS', language)],
             [translate_text_with_openai('Minor', language), 
-             str(defect_data['ai_minor_count']), '14',
-             translate_text_with_openai('FAIL' if defect_data['ai_minor_count']>14 else 'PASS', language)]
+             str(ai_minor_count), '14',
+             translate_text_with_openai('FAIL' if ai_minor_count>14 else 'PASS', language)]
         ]
         
-        ai_table = Table(ai_header + ai_data, colWidths=[3.5*cm, 3.5*cm, 3.5*cm, 3.5*cm])
+        ai_table = Table(ai_data, colWidths=[3.5*cm, 3.5*cm, 3.5*cm, 3.5*cm])
         ai_table.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), colors.Color(0.6, 0.7, 0.9)),
             ('TEXTCOLOR', (0,0), (-1,0), colors.white),
@@ -676,43 +580,42 @@ def generate_multilingual_pdf(export_report, po_number, style_number, language):
         elements.append(ai_table)
         elements.append(Spacer(1, 20))
         
-        # QC Manager Review Section
         qc_label = translate_text_with_openai("QC MANAGER REVIEW & AMENDMENTS", language)
         elements.append(Paragraph(qc_label, section_style))
         elements.append(Spacer(1, 10))
         
-        # Changes calculation
-        crit_change = defect_data['critical_count'] - defect_data['ai_critical_count']
-        maj_change = defect_data['major_count'] - defect_data['ai_major_count']
-        min_change = defect_data['minor_count'] - defect_data['ai_minor_count']
+        qc_critical_count = len(st.session_state.defect_store['qc_critical'])
+        qc_major_count = len(st.session_state.defect_store['qc_major'])
+        qc_minor_count = len(st.session_state.defect_store['qc_minor'])
         
-        qc_header = [
+        crit_change = qc_critical_count - ai_critical_count
+        maj_change = qc_major_count - ai_major_count
+        min_change = qc_minor_count - ai_minor_count
+        
+        qc_data = [
             [translate_text_with_openai('Defect Type', language),
              translate_text_with_openai('AI Count', language),
              translate_text_with_openai('QC Final', language),
              translate_text_with_openai('Change', language),
-             translate_text_with_openai('Status', language)]
-        ]
-        
-        qc_data = [
+             translate_text_with_openai('Status', language)],
             [translate_text_with_openai('Critical', language),
-             str(defect_data['ai_critical_count']),
-             str(defect_data['critical_count']),
+             str(ai_critical_count),
+             str(qc_critical_count),
              f"{crit_change:+d}" if crit_change != 0 else "0",
-             translate_text_with_openai('FAIL' if defect_data['critical_count']>0 else 'PASS', language)],
+             translate_text_with_openai('FAIL' if qc_critical_count>0 else 'PASS', language)],
             [translate_text_with_openai('Major', language),
-             str(defect_data['ai_major_count']),
-             str(defect_data['major_count']),
+             str(ai_major_count),
+             str(qc_major_count),
              f"{maj_change:+d}" if maj_change != 0 else "0",
-             translate_text_with_openai('FAIL' if defect_data['major_count']>10 else 'PASS', language)],
+             translate_text_with_openai('FAIL' if qc_major_count>10 else 'PASS', language)],
             [translate_text_with_openai('Minor', language),
-             str(defect_data['ai_minor_count']),
-             str(defect_data['minor_count']),
+             str(ai_minor_count),
+             str(qc_minor_count),
              f"{min_change:+d}" if min_change != 0 else "0",
-             translate_text_with_openai('FAIL' if defect_data['minor_count']>14 else 'PASS', language)]
+             translate_text_with_openai('FAIL' if qc_minor_count>14 else 'PASS', language)]
         ]
         
-        qc_table = Table(qc_header + qc_data, colWidths=[3*cm, 2.5*cm, 2.5*cm, 2.5*cm, 3*cm])
+        qc_table = Table(qc_data, colWidths=[3*cm, 2.5*cm, 2.5*cm, 2.5*cm, 3*cm])
         qc_table.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), warning_orange),
             ('TEXTCOLOR', (0,0), (-1,0), colors.white),
@@ -727,37 +630,100 @@ def generate_multilingual_pdf(export_report, po_number, style_number, language):
         elements.append(qc_table)
         elements.append(Spacer(1, 20))
         
-        # Defect Details - Translate defects for PDF using original defects
-        def add_defects(title_key, defect_list, color_obj):
-            if defect_list:
+        def add_defects(title_key, defect_category, color_obj):
+            defects_list = st.session_state.defect_store[defect_category]
+            if defects_list:
                 title = translate_text_with_openai(title_key, language)
                 elements.append(Paragraph(title, section_style))
                 elements.append(Spacer(1, 8))
-                for i, d in enumerate(defect_list, 1):
-                    # Translate defect for PDF using original defect
-                    translated_defect = translate_text_with_openai(d, language)
-                    defect_style = ParagraphStyle(f'defect{i}_{id(d)}', parent=body_style, leftIndent=15, 
-                                                  textColor=color_obj, fontSize=10)
+                for i, (defect_id, english_text) in enumerate(defects_list, 1):
+                    translated_defect = translate_text_with_openai(english_text, language)
+                    defect_style = ParagraphStyle(f'defect{defect_id}', parent=body_style, 
+                                                  leftIndent=15, textColor=color_obj, fontSize=10)
                     elements.append(Paragraph(f"{i}. {translated_defect}", defect_style))
                     elements.append(Spacer(1, 4))
                 elements.append(Spacer(1, 10))
         
-        # Use original defects for PDF generation
-        original_critical = defects['critical_defects']
-        original_major = defects['major_defects']
-        original_minor = defects['minor_defects']
+        add_defects("CRITICAL DEFECTS (FINAL)", 'qc_critical', danger_red)
+        add_defects("MAJOR DEFECTS (FINAL)", 'qc_major', warning_orange)
+        add_defects("MINOR DEFECTS (FINAL)", 'qc_minor', brand_blue)
         
-        add_defects("CRITICAL DEFECTS (FINAL)", original_critical, danger_red)
-        add_defects("MAJOR DEFECTS (FINAL)", original_major, warning_orange)
-        add_defects("MINOR DEFECTS (FINAL)", original_minor, brand_blue)
-        
-        # QC Notes
-        if export_report.get('qc_notes'):
+        # Translate QC notes from English storage to target language
+        if st.session_state.qc_notes_english and st.session_state.qc_notes_english.strip():
             notes_label = translate_text_with_openai("QC MANAGER NOTES", language)
             elements.append(Paragraph(notes_label, section_style))
-            notes_text = export_report['qc_notes']
-            if language != "English":
-                notes_text = translate_text_with_openai(notes_text, language)
+            notes_text = translate_text_with_openai(st.session_state.qc_notes_english, language)
+            elements.append(Paragraph(notes_text, body_style))
+        
+        doc.build(elements)
+        return buffer.getvalue()
+        
+    except Exception as e:
+        st.error(f"PDF Error: {str(e)}")
+        import traceback
+        st.error(traceback.format_exc())
+        return None
+        
+        qc_data = [
+            [translate_text_with_openai('Defect Type', language),
+             translate_text_with_openai('AI Count', language),
+             translate_text_with_openai('QC Final', language),
+             translate_text_with_openai('Change', language),
+             translate_text_with_openai('Status', language)],
+            [translate_text_with_openai('Critical', language),
+             str(ai_critical_count),
+             str(qc_critical_count),
+             f"{crit_change:+d}" if crit_change != 0 else "0",
+             translate_text_with_openai('FAIL' if qc_critical_count>0 else 'PASS', language)],
+            [translate_text_with_openai('Major', language),
+             str(ai_major_count),
+             str(qc_major_count),
+             f"{maj_change:+d}" if maj_change != 0 else "0",
+             translate_text_with_openai('FAIL' if qc_major_count>10 else 'PASS', language)],
+            [translate_text_with_openai('Minor', language),
+             str(ai_minor_count),
+             str(qc_minor_count),
+             f"{min_change:+d}" if min_change != 0 else "0",
+             translate_text_with_openai('FAIL' if qc_minor_count>14 else 'PASS', language)]
+        ]
+        
+        qc_table = Table(qc_data, colWidths=[3*cm, 2.5*cm, 2.5*cm, 2.5*cm, 3*cm])
+        qc_table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), warning_orange),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+            ('FONTNAME', (0,0), (-1,-1), base_font),
+            ('FONTSIZE', (0,0), (-1,-1), 10),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('TOPPADDING', (0,0),(-1,-1), 10),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+            ('GRID', (0,0), (-1,-1), 1, colors.grey)
+        ]))
+        elements.append(qc_table)
+        elements.append(Spacer(1, 20))
+        
+        def add_defects(title_key, defect_category, color_obj):
+            defects_list = st.session_state.defect_store[defect_category]
+            if defects_list:
+                title = translate_text_with_openai(title_key, language)
+                elements.append(Paragraph(title, section_style))
+                elements.append(Spacer(1, 8))
+                for i, (defect_id, english_text) in enumerate(defects_list, 1):
+                    translated_defect = translate_text_with_openai(english_text, language)
+                    defect_style = ParagraphStyle(f'defect{defect_id}', parent=body_style, 
+                                                  leftIndent=15, textColor=color_obj, fontSize=10)
+                    elements.append(Paragraph(f"{i}. {translated_defect}", defect_style))
+                    elements.append(Spacer(1, 4))
+                elements.append(Spacer(1, 10))
+        
+        add_defects("CRITICAL DEFECTS (FINAL)", 'qc_critical', danger_red)
+        add_defects("MAJOR DEFECTS (FINAL)", 'qc_major', warning_orange)
+        add_defects("MINOR DEFECTS (FINAL)", 'qc_minor', brand_blue)
+        
+        if qc_notes and qc_notes.strip():
+            notes_label = translate_text_with_openai("QC MANAGER NOTES", language)
+            elements.append(Paragraph(notes_label, section_style))
+            notes_text = translate_text_with_openai(qc_notes, language)
             elements.append(Paragraph(notes_text, body_style))
         
         doc.build(elements)
@@ -771,7 +737,7 @@ def generate_multilingual_pdf(export_report, po_number, style_number, language):
 
 # Language Selector in Sidebar
 with st.sidebar:
-    st.markdown(f"### 🌐 {t('language_preference')}")
+    st.markdown(f"### {t('language_preference')}")
     
     st.markdown("**Interface Language:**")
     ui_lang = st.selectbox(
@@ -793,32 +759,7 @@ with st.sidebar:
         label_visibility="collapsed"
     )
 
-# Update language if changed
 if ui_lang != st.session_state.ui_language:
-    # Translate all defects when language changes
-    if 'ai_report' in st.session_state and 'qc_amendments' in st.session_state:
-        # Translate AI defects
-        st.session_state.ai_report['critical_defects'] = translate_defects_list(
-            st.session_state.ai_report['critical_defects'], ui_lang
-        )
-        st.session_state.ai_report['major_defects'] = translate_defects_list(
-            st.session_state.ai_report['major_defects'], ui_lang
-        )
-        st.session_state.ai_report['minor_defects'] = translate_defects_list(
-            st.session_state.ai_report['minor_defects'], ui_lang
-        )
-        
-        # Translate QC amendments
-        st.session_state.qc_amendments['critical_defects'] = translate_defects_list(
-            st.session_state.qc_amendments['critical_defects'], ui_lang
-        )
-        st.session_state.qc_amendments['major_defects'] = translate_defects_list(
-            st.session_state.qc_amendments['major_defects'], ui_lang
-        )
-        st.session_state.qc_amendments['minor_defects'] = translate_defects_list(
-            st.session_state.qc_amendments['minor_defects'], ui_lang
-        )
-    
     st.session_state.ui_language = ui_lang
     st.rerun()
 
@@ -828,7 +769,6 @@ if pdf_lang != st.session_state.pdf_language:
 # Main App Content
 st.markdown(f'<div class="hero-section"><h1 style="margin:0; font-size: 1.8rem;">{t("app_title")}</h1><p style="margin-top:0.5rem; font-size: 0.9rem;">GRAND STEP (H.K.) LTD<br>Professional Footwear Manufacturing & Quality Control<br>AI-Powered Quality Inspection System</p></div>', unsafe_allow_html=True)
 
-# Order Information
 st.markdown(f'<div class="section-header">{t("order_info")}</div>', unsafe_allow_html=True)
 
 col1, col2, col3 = st.columns(3)
@@ -842,8 +782,7 @@ with col3:
     inspector = st.text_input(t("inspector"), value="AI Inspector")
     inspection_date = st.date_input(t("inspection_date"), value=datetime.now().date())
 
-# Image Upload
-st.markdown(f'<div class="section-header">📸 {t("image_upload")}</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="section-header">{t("image_upload")}</div>', unsafe_allow_html=True)
 
 angle_sequence = ["Front View", "Right Side", "Left Side", "Back View"]
 uploaded_files = st.file_uploader(t("upload_images"), type=['png','jpg','jpeg'], accept_multiple_files=True)
@@ -855,85 +794,52 @@ if uploaded_files and len(uploaded_files) == 4:
     for idx, (angle, file) in enumerate(zip(angle_sequence, uploaded_files)):
         uploaded_images[angle] = file
         with cols[idx]:
-            st.image(Image.open(file), caption=angle, use_container_width=True)
+            st.image(Image.open(file), caption=angle, width='stretch')
 
-# Analysis
 if len(uploaded_images) == 4:
-    if st.button(f"🚀 {t('start_inspection')}", type="primary", use_container_width=True):
+    if st.button(f"{t('start_inspection')}", type="primary", width='stretch'):
         progress = st.progress(0)
         analyses = []
         
         with st.spinner(t("analyzing")):
             for idx, (angle, file) in enumerate(uploaded_images.items()):
                 image = Image.open(file)
-                # Always analyze in English to get consistent original defects
-                analysis = analyze_shoe_image(client, image, angle, style_number, color, po_number, "English")
+                analysis = analyze_shoe_image(client, image, angle, style_number, color, po_number)
                 analyses.append(analysis)
                 progress.progress((idx + 1) / 4)
         
         order_info = {
-            "po_number": po_number, "style_number": style_number, "color": color,
-            "customer": customer, "inspector": inspector,
+            "po_number": po_number,
+            "style_number": style_number,
+            "color": color,
+            "customer": customer,
+            "inspector": inspector,
             "inspection_date": inspection_date.strftime("%Y-%m-%d")
         }
         
-        final_report = generate_qc_report(analyses, order_info)
+        ai_report = generate_qc_report(analyses)
         
-        # Store original defects
-        ai_defects = {
-            'critical': final_report['critical_defects'],
-            'major': final_report['major_defects'],
-            'minor': final_report['minor_defects']
-        }
-        
-        # Initialize QC amendments with original defects
-        qc_defects = {
-            'critical': final_report['critical_defects'].copy(),
-            'major': final_report['major_defects'].copy(),
-            'minor': final_report['minor_defects'].copy()
-        }
-        
-        store_original_defects(ai_defects, qc_defects)
-        
-        # Initialize session state with translated defects for current UI language
-        if 'qc_amendments' not in st.session_state:
-            st.session_state.qc_amendments = {
-                'critical_defects': translate_defects_list(final_report['critical_defects'], st.session_state.ui_language),
-                'major_defects': translate_defects_list(final_report['major_defects'], st.session_state.ui_language),
-                'minor_defects': translate_defects_list(final_report['minor_defects'], st.session_state.ui_language),
-                'qc_notes': ''
-            }
-        
-        # Store AI report with translated defects
-        st.session_state.ai_report = {
-            'critical_count': final_report['critical_count'],
-            'major_count': final_report['major_count'],
-            'minor_count': final_report['minor_count'],
-            'critical_defects': translate_defects_list(final_report['critical_defects'], st.session_state.ui_language),
-            'major_defects': translate_defects_list(final_report['major_defects'], st.session_state.ui_language),
-            'minor_defects': translate_defects_list(final_report['minor_defects'], st.session_state.ui_language),
-            'aql_limits': final_report['aql_limits'],
-            'result': final_report['result'],
-            'reason': final_report['reason']
-        }
-        
+        st.session_state.ai_report = ai_report
         st.session_state.order_info = order_info
+        st.session_state.qc_notes_english = ''
         st.session_state.analyses_done = True
+        st.rerun()
 
-# Display Results
 if 'analyses_done' in st.session_state and st.session_state.analyses_done:
-    final_report = st.session_state.ai_report
+    ai_report = st.session_state.ai_report
     order_info = st.session_state.order_info
     
-    # AI Results Display
     st.markdown(f"## {t('ai_results')}")
     
-    # Metrics with better mobile visibility
+    ai_critical_ids, ai_critical_translated = get_translated_defects('ai_critical', st.session_state.ui_language)
+    ai_major_ids, ai_major_translated = get_translated_defects('ai_major', st.session_state.ui_language)
+    ai_minor_ids, ai_minor_translated = get_translated_defects('ai_minor', st.session_state.ui_language)
+    
     col1, col2, col3 = st.columns(3)
     metrics = [
-        (t("critical"), final_report['critical_count'], "#ef4444"),
-        (t("major"), final_report['major_count'], "#f59e0b"),
-        (t("minor"), final_report['minor_count'], "#3b82f6")
+        (t("critical"), len(ai_critical_ids), "#ef4444"),
+        (t("major"), len(ai_major_ids), "#f59e0b"),
+        (t("minor"), len(ai_minor_ids), "#3b82f6")
     ]
     
     for col, (label, count, color) in zip([col1, col2, col3], metrics):
@@ -945,161 +851,215 @@ if 'analyses_done' in st.session_state and st.session_state.analyses_done:
             </div>
             """, unsafe_allow_html=True)
     
-    # Display defects with better styling
-    with st.expander(f"📋 {t('view_ai_defects')}", expanded=True):
-        if final_report.get('critical_defects'):
+    with st.expander(f"{t('view_ai_defects')}", expanded=True):
+        if ai_critical_translated:
             st.markdown(f"**{t('critical')}:**")
-            for d in final_report['critical_defects']:
-                st.markdown(f'<div class="defect-item critical-defect">🔴 {d}</div>', unsafe_allow_html=True)
+            for d in ai_critical_translated:
+                st.markdown(f'<div class="defect-item critical-defect">{d}</div>', unsafe_allow_html=True)
         
-        if final_report.get('major_defects'):
+        if ai_major_translated:
             st.markdown(f"**{t('major')}:**")
-            for d in final_report['major_defects']:
-                st.markdown(f'<div class="defect-item major-defect">🟡 {d}</div>', unsafe_allow_html=True)
+            for d in ai_major_translated:
+                st.markdown(f'<div class="defect-item major-defect">{d}</div>', unsafe_allow_html=True)
         
-        if final_report.get('minor_defects'):
+        if ai_minor_translated:
             st.markdown(f"**{t('minor')}:**")
-            for d in final_report['minor_defects']:
-                st.markdown(f'<div class="defect-item minor-defect">🔵 {d}</div>', unsafe_allow_html=True)
+            for d in ai_minor_translated:
+                st.markdown(f'<div class="defect-item minor-defect">{d}</div>', unsafe_allow_html=True)
+        
+        if not (ai_critical_translated or ai_major_translated or ai_minor_translated):
+            st.success(f"{t('no_defects')}")
     
     st.markdown("---")
     
-    # QC Manager Review Section
     st.markdown(f"""
     <div style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; padding: 1.5rem;
     border-radius: 12px; margin: 1.5rem 0; text-align: center;">
-        <div style="font-size: 1.3rem; font-weight: 700;">👤 {t('qc_review')}</div>
+        <div style="font-size: 1.3rem; font-weight: 700;">{t('qc_review')}</div>
     </div>
     """, unsafe_allow_html=True)
     
-    # Critical Defects Review
-    st.markdown(f"### 🚨 {t('critical_review')}")
+    qc_critical_ids, qc_critical_translated = get_translated_defects('qc_critical', st.session_state.ui_language)
+    qc_major_ids, qc_major_translated = get_translated_defects('qc_major', st.session_state.ui_language)
+    qc_minor_ids, qc_minor_translated = get_translated_defects('qc_minor', st.session_state.ui_language)
     
-    if st.session_state.qc_amendments['critical_defects']:
-        for idx, defect in enumerate(st.session_state.qc_amendments['critical_defects']):
+    st.markdown(f"### {t('critical_review')}")
+    
+    if qc_critical_translated:
+        for idx, (defect_id, defect_text) in enumerate(zip(qc_critical_ids, qc_critical_translated)):
             col1, col2 = st.columns([5, 1])
             with col1:
-                st.markdown(f'<div class="defect-item critical-defect">🔴 {defect}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="defect-item critical-defect">{defect_text}</div>', unsafe_allow_html=True)
             with col2:
-                if st.button("❌", key=f"remove_crit_{idx}"):
-                    st.session_state.qc_amendments['critical_defects'].pop(idx)
+                if st.button("❌", key=f"remove_crit_{defect_id}"):
+                    remove_defect_from_store('qc_critical', defect_id)
                     st.rerun()
     else:
-        st.success(f"✅ {t('no_defects')}")
+        st.success(f"{t('no_defects')}")
     
     st.markdown(f"**{t('add_defect')} ({t('critical')})**")
     
-    # Text input for critical defects
     new_crit_text = st.text_input(t("type_defect"), key="new_crit_text", placeholder=t("enter_defect"))
-    if st.button(f"➕ {t('add_text')} ({t('critical')})", key="add_crit_text_btn", use_container_width=True):
+    if st.button(f"{t('add_text')} ({t('critical')})", key="add_crit_text_btn", width='stretch'):
         if new_crit_text.strip():
-            st.session_state.qc_amendments['critical_defects'].append(new_crit_text.strip())
-            st.success(f"✅ {t('critical')} {t('defect_added')}")
+            if st.session_state.ui_language != "English":
+                try:
+                    reverse_response = client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[{
+                            "role": "user",
+                            "content": f"Translate this quality control defect to English. Return ONLY the English translation:\n\n{new_crit_text}"
+                        }],
+                        max_tokens=200,
+                        temperature=0.1
+                    )
+                    english_text = reverse_response.choices[0].message.content.strip()
+                except:
+                    english_text = new_crit_text
+            else:
+                english_text = new_crit_text.strip()
+            
+            add_defect_to_store('qc_critical', english_text)
+            st.success(f"{t('critical')} {t('defect_added')}")
             st.rerun()
     
     st.markdown("---")
     
-    # Major Defects Review
-    st.markdown(f"### ⚠️ {t('major_review')}")
+    st.markdown(f"### {t('major_review')}")
     
-    if st.session_state.qc_amendments['major_defects']:
-        for idx, defect in enumerate(st.session_state.qc_amendments['major_defects']):
+    if qc_major_translated:
+        for idx, (defect_id, defect_text) in enumerate(zip(qc_major_ids, qc_major_translated)):
             col1, col2 = st.columns([5, 1])
             with col1:
-                st.markdown(f'<div class="defect-item major-defect">🟡 {defect}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="defect-item major-defect">{defect_text}</div>', unsafe_allow_html=True)
             with col2:
-                if st.button("❌", key=f"remove_maj_{idx}"):
-                    st.session_state.qc_amendments['major_defects'].pop(idx)
+                if st.button("❌", key=f"remove_maj_{defect_id}"):
+                    remove_defect_from_store('qc_major', defect_id)
                     st.rerun()
     else:
-        st.success(f"✅ {t('no_defects')}")
+        st.success(f"{t('no_defects')}")
     
     st.markdown(f"**{t('add_defect')} ({t('major')})**")
     
-    # Text input for major defects
     new_maj_text = st.text_input(t("type_defect"), key="new_maj_text", placeholder=t("enter_defect"))
-    if st.button(f"➕ {t('add_text')} ({t('major')})", key="add_maj_text_btn", use_container_width=True):
+    if st.button(f"{t('add_text')} ({t('major')})", key="add_maj_text_btn", width='stretch'):
         if new_maj_text.strip():
-            st.session_state.qc_amendments['major_defects'].append(new_maj_text.strip())
-            st.success(f"✅ {t('major')} {t('defect_added')}")
+            if st.session_state.ui_language != "English":
+                try:
+                    reverse_response = client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[{
+                            "role": "user",
+                            "content": f"Translate this quality control defect to English. Return ONLY the English translation:\n\n{new_maj_text}"
+                        }],
+                        max_tokens=200,
+                        temperature=0.1
+                    )
+                    english_text = reverse_response.choices[0].message.content.strip()
+                except:
+                    english_text = new_maj_text
+            else:
+                english_text = new_maj_text.strip()
+            
+            add_defect_to_store('qc_major', english_text)
+            st.success(f"{t('major')} {t('defect_added')}")
             st.rerun()
     
     st.markdown("---")
     
-    # Minor Defects Review
-    st.markdown(f"### ℹ️ {t('minor_review')}")
+    st.markdown(f"### {t('minor_review')}")
     
-    if st.session_state.qc_amendments['minor_defects']:
-        for idx, defect in enumerate(st.session_state.qc_amendments['minor_defects']):
+    if qc_minor_translated:
+        for idx, (defect_id, defect_text) in enumerate(zip(qc_minor_ids, qc_minor_translated)):
             col1, col2 = st.columns([5, 1])
             with col1:
-                st.markdown(f'<div class="defect-item minor-defect">🔵 {defect}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="defect-item minor-defect">{defect_text}</div>', unsafe_allow_html=True)
             with col2:
-                if st.button("❌", key=f"remove_min_{idx}"):
-                    st.session_state.qc_amendments['minor_defects'].pop(idx)
+                if st.button("❌", key=f"remove_min_{defect_id}"):
+                    remove_defect_from_store('qc_minor', defect_id)
                     st.rerun()
     else:
-        st.success(f"✅ {t('no_defects')}")
+        st.success(f"{t('no_defects')}")
     
     st.markdown(f"**{t('add_defect')} ({t('minor')})**")
     
-    # Text input for minor defects
     new_min_text = st.text_input(t("type_defect"), key="new_min_text", placeholder=t("enter_defect"))
-    if st.button(f"➕ {t('add_text')} ({t('minor')})", key="add_min_text_btn", use_container_width=True):
+    if st.button(f"{t('add_text')} ({t('minor')})", key="add_min_text_btn", width='stretch'):
         if new_min_text.strip():
-            st.session_state.qc_amendments['minor_defects'].append(new_min_text.strip())
-            st.success(f"✅ {t('minor')} {t('defect_added')}")
+            if st.session_state.ui_language != "English":
+                try:
+                    reverse_response = client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[{
+                            "role": "user",
+                            "content": f"Translate this quality control defect to English. Return ONLY the English translation:\n\n{new_min_text}"
+                        }],
+                        max_tokens=200,
+                        temperature=0.1
+                    )
+                    english_text = reverse_response.choices[0].message.content.strip()
+                except:
+                    english_text = new_min_text
+            else:
+                english_text = new_min_text.strip()
+            
+            add_defect_to_store('qc_minor', english_text)
+            st.success(f"{t('minor')} {t('defect_added')}")
             st.rerun()
     
     st.markdown("---")
     
-    # QC Notes
-    st.markdown(f"### 📝 {t('qc_notes')}")
+    st.markdown(f"### {t('qc_notes')}")
     
-    qc_notes = st.text_area(t("additional_notes"), value=st.session_state.qc_amendments['qc_notes'], height=120, key="qc_notes_textarea")
+    if 'qc_notes_english' not in st.session_state:
+        st.session_state.qc_notes_english = ''
     
-    if st.button(f"💾 {t('save_notes')}", type="primary", use_container_width=True):
-        st.session_state.qc_amendments['qc_notes'] = qc_notes
-        st.success(f"✅ {t('notes_saved')}")
+    # Get translated notes for display in current UI language
+    displayed_notes = translate_text_with_openai(st.session_state.qc_notes_english, st.session_state.ui_language) if st.session_state.qc_notes_english else ''
+    
+    qc_notes_input = st.text_area(t("additional_notes"), value=displayed_notes, height=120, key="qc_notes_textarea")
+    
+    if st.button(f"{t('save_notes')}", type="primary", width='stretch'):
+        # If user entered in non-English, translate back to English for storage
+        if st.session_state.ui_language != "English" and qc_notes_input.strip():
+            try:
+                reverse_response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{
+                        "role": "user",
+                        "content": f"Translate this to English. Return ONLY the English translation:\n\n{qc_notes_input}"
+                    }],
+                    max_tokens=500,
+                    temperature=0.1
+                )
+                st.session_state.qc_notes_english = reverse_response.choices[0].message.content.strip()
+            except:
+                st.session_state.qc_notes_english = qc_notes_input
+        else:
+            st.session_state.qc_notes_english = qc_notes_input
+        
+        st.success(f"{t('notes_saved')}")
+        st.rerun()
     
     st.markdown("---")
     
-    # Calculate Amended Report
-    amended_report = {
-        'critical_count': len(st.session_state.qc_amendments['critical_defects']),
-        'major_count': len(st.session_state.qc_amendments['major_defects']),
-        'minor_count': len(st.session_state.qc_amendments['minor_defects']),
-        'critical_defects': st.session_state.qc_amendments['critical_defects'],
-        'major_defects': st.session_state.qc_amendments['major_defects'],
-        'minor_defects': st.session_state.qc_amendments['minor_defects'],
-        'aql_limits': final_report['aql_limits']
-    }
+    final_result, final_reason = calculate_final_decision()
     
-    if amended_report['critical_count'] > 0:
-        amended_result = "REJECT"
-        amended_reason = f"Critical defects ({amended_report['critical_count']}) - Zero tolerance"
-    elif amended_report['major_count'] > 10:
-        amended_result = "REJECT"
-        amended_reason = f"Major defects ({amended_report['major_count']}) exceed AQL limit"
-    elif amended_report['minor_count'] > 14:
-        amended_result = "REWORK"
-        amended_reason = f"Minor defects ({amended_report['minor_count']}) exceed AQL limit"
-    else:
-        amended_result = "ACCEPT"
-        amended_reason = "All defects within AQL 2.5 limits"
-    
-    # Final Summary
     st.markdown(f"## {t('final_summary')}")
+    
+    qc_critical_count = len(qc_critical_ids)
+    qc_major_count = len(qc_major_ids)
+    qc_minor_count = len(qc_minor_ids)
     
     col1, col2, col3 = st.columns(3)
     changes = [
-        (amended_report['critical_count'] - final_report['critical_count'], "#ef4444"),
-        (amended_report['major_count'] - final_report['major_count'], "#f59e0b"),
-        (amended_report['minor_count'] - final_report['minor_count'], "#3b82f6")
+        (qc_critical_count - len(ai_critical_ids), "#ef4444"),
+        (qc_major_count - len(ai_major_ids), "#f59e0b"),
+        (qc_minor_count - len(ai_minor_ids), "#3b82f6")
     ]
     
     labels = [t("critical"), t("major"), t("minor")]
-    counts = [amended_report['critical_count'], amended_report['major_count'], amended_report['minor_count']]
+    counts = [qc_critical_count, qc_major_count, qc_minor_count]
     
     for col, label, count, (change, color) in zip([col1, col2, col3], labels, counts, changes):
         icon = "🔺" if change > 0 else "🔻" if change < 0 else "➖"
@@ -1112,16 +1072,15 @@ if 'analyses_done' in st.session_state and st.session_state.analyses_done:
             </div>
             """, unsafe_allow_html=True)
     
-    # Final Result
     result_colors_final = {
         "ACCEPT": ("#10b981", "#dcfce7"), 
         "REWORK": ("#f59e0b", "#fef3c7"), 
         "REJECT": ("#ef4444", "#fecaca")
     }
-    final_bg, final_light = result_colors_final[amended_result]
+    final_bg, final_light = result_colors_final[final_result]
     
-    translated_result = translate_text_with_openai(amended_result, st.session_state.ui_language)
-    translated_reason = translate_text_with_openai(amended_reason, st.session_state.ui_language)
+    translated_result = translate_text_with_openai(final_result, st.session_state.ui_language)
+    translated_reason = translate_text_with_openai(final_reason, st.session_state.ui_language)
     
     st.markdown(f"""
     <div style="background: {final_light}; border: 3px solid {final_bg}; border-radius: 12px;
@@ -1132,46 +1091,15 @@ if 'analyses_done' in st.session_state and st.session_state.analyses_done:
     </div>
     """, unsafe_allow_html=True)
     
-    # PDF Export
-    st.markdown(f"## 📄 {t('generate_pdf')}")
-    st.info(f"📊 {t('pdf_language_info')} {LANGUAGES[st.session_state.pdf_language]['flag']} {LANGUAGES[st.session_state.pdf_language]['label']}")
+    st.markdown(f"## {t('generate_pdf')}")
+    st.info(f"{t('pdf_language_info')} {LANGUAGES[st.session_state.pdf_language]['flag']} {LANGUAGES[st.session_state.pdf_language]['label']}")
     
-    # For PDF export, use original defects and translate them to the target language
-    export_data = {
-        "inspection_summary": {
-            "inspection_date": order_info["inspection_date"],
-            "inspector": order_info["inspector"],
-            "customer": order_info["customer"],
-            "po_number": order_info["po_number"],
-            "style_number": order_info["style_number"],
-            "color": order_info["color"],
-            "final_result": amended_result,
-            "inspection_standard": "AQL 2.5"
-        },
-        "defect_summary": {
-            "ai_critical_count": final_report['critical_count'],
-            "ai_major_count": final_report['major_count'],
-            "ai_minor_count": final_report['minor_count'],
-            "critical_count": amended_report['critical_count'],
-            "major_count": amended_report['major_count'],
-            "minor_count": amended_report['minor_count'],
-            "aql_limits": final_report['aql_limits']
-        },
-        "defect_details": {
-            "ai_critical_defects": list(st.session_state.original_ai_defects.values())[:amended_report['critical_count']],
-            "ai_major_defects": list(st.session_state.original_ai_defects.values())[:amended_report['major_count']],
-            "ai_minor_defects": list(st.session_state.original_ai_defects.values())[:amended_report['minor_count']],
-            "critical_defects": list(st.session_state.original_qc_defects.values())[:amended_report['critical_count']],
-            "major_defects": list(st.session_state.original_qc_defects.values())[:amended_report['major_count']],
-            "minor_defects": list(st.session_state.original_qc_defects.values())[:amended_report['minor_count']]
-        },
-        "decision_rationale": amended_reason,
-        "qc_notes": st.session_state.qc_amendments['qc_notes']
-    }
-    
-    if st.button(f"📄 {t('generate_pdf')}", type="primary", use_container_width=True):
+    if st.button(f"{t('generate_pdf')}", type="primary", width='stretch'):
         with st.spinner(t("generating_pdf")):
-            pdf_bytes = generate_multilingual_pdf(export_data, po_number, style_number, st.session_state.pdf_language)
+            pdf_bytes = generate_multilingual_pdf(
+                order_info, 
+                st.session_state.pdf_language
+            )
         
         if pdf_bytes:
             lang_suffix = st.session_state.pdf_language[:2].upper()
@@ -1182,7 +1110,7 @@ if 'analyses_done' in st.session_state and st.session_state.analyses_done:
                 file_name=filename,
                 mime="application/pdf",
                 type="primary",
-                use_container_width=True
+                width='stretch'
             )
             st.success(f"✅ {t('pdf_ready')}")
         else:
