@@ -676,7 +676,7 @@ def generate_multilingual_pdf(order_info, language):
         st.error(f"PDF Error: {str(e)}")
         import traceback
         st.error(traceback.format_exc())
-        return None ai_minor_count
+        return None
         
         qc_data = [
             [translate_text_with_openai('Defect Type', language),
