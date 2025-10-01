@@ -794,10 +794,10 @@ if uploaded_files and len(uploaded_files) == 4:
     for idx, (angle, file) in enumerate(zip(angle_sequence, uploaded_files)):
         uploaded_images[angle] = file
         with cols[idx]:
-            st.image(Image.open(file), caption=angle, width='stretch')
+            st.image(Image.open(file), caption=angle, use_container_width=True)
 
 if len(uploaded_images) == 4:
-    if st.button(f"{t('start_inspection')}", type="primary", width='stretch'):
+    if st.button(f"{t('start_inspection')}", type="primary", use_container_width=True):
         progress = st.progress(0)
         analyses = []
         
@@ -900,7 +900,7 @@ if 'analyses_done' in st.session_state and st.session_state.analyses_done:
     st.markdown(f"**{t('add_defect')} ({t('critical')})**")
     
     new_crit_text = st.text_input(t("type_defect"), key="new_crit_text", placeholder=t("enter_defect"))
-    if st.button(f"{t('add_text')} ({t('critical')})", key="add_crit_text_btn", width='stretch'):
+    if st.button(f"{t('add_text')} ({t('critical')})", key="add_crit_text_btn", use_container_width=True):
         if new_crit_text.strip():
             if st.session_state.ui_language != "English":
                 try:
@@ -942,7 +942,7 @@ if 'analyses_done' in st.session_state and st.session_state.analyses_done:
     st.markdown(f"**{t('add_defect')} ({t('major')})**")
     
     new_maj_text = st.text_input(t("type_defect"), key="new_maj_text", placeholder=t("enter_defect"))
-    if st.button(f"{t('add_text')} ({t('major')})", key="add_maj_text_btn", width='stretch'):
+    if st.button(f"{t('add_text')} ({t('major')})", key="add_maj_text_btn", use_container_width=True):
         if new_maj_text.strip():
             if st.session_state.ui_language != "English":
                 try:
@@ -984,7 +984,7 @@ if 'analyses_done' in st.session_state and st.session_state.analyses_done:
     st.markdown(f"**{t('add_defect')} ({t('minor')})**")
     
     new_min_text = st.text_input(t("type_defect"), key="new_min_text", placeholder=t("enter_defect"))
-    if st.button(f"{t('add_text')} ({t('minor')})", key="add_min_text_btn", width='stretch'):
+    if st.button(f"{t('add_text')} ({t('minor')})", key="add_min_text_btn", use_container_width=True):
         if new_min_text.strip():
             if st.session_state.ui_language != "English":
                 try:
@@ -1019,7 +1019,7 @@ if 'analyses_done' in st.session_state and st.session_state.analyses_done:
     
     qc_notes_input = st.text_area(t("additional_notes"), value=displayed_notes, height=120, key="qc_notes_textarea")
     
-    if st.button(f"{t('save_notes')}", type="primary", width='stretch'):
+    if st.button(f"{t('save_notes')}", type="primary", use_container_width=True):
         # If user entered in non-English, translate back to English for storage
         if st.session_state.ui_language != "English" and qc_notes_input.strip():
             try:
@@ -1094,7 +1094,7 @@ if 'analyses_done' in st.session_state and st.session_state.analyses_done:
     st.markdown(f"## {t('generate_pdf')}")
     st.info(f"{t('pdf_language_info')} {LANGUAGES[st.session_state.pdf_language]['flag']} {LANGUAGES[st.session_state.pdf_language]['label']}")
     
-    if st.button(f"{t('generate_pdf')}", type="primary", width='stretch'):
+    if st.button(f"{t('generate_pdf')}", type="primary", use_container_width=True):
         with st.spinner(t("generating_pdf")):
             pdf_bytes = generate_multilingual_pdf(
                 order_info, 
@@ -1110,7 +1110,7 @@ if 'analyses_done' in st.session_state and st.session_state.analyses_done:
                 file_name=filename,
                 mime="application/pdf",
                 type="primary",
-                width='stretch'
+                use_container_width=True
             )
             st.success(f"✅ {t('pdf_ready')}")
         else:
