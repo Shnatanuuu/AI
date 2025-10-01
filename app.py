@@ -254,11 +254,25 @@ st.markdown("""
         border-left: 4px solid;
         background: white;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        color: #1f2937 !important;
+        font-weight: 500;
     }
     
-    .critical-defect { border-left-color: #ef4444; background: #fef2f2; }
-    .major-defect { border-left-color: #f59e0b; background: #fffbeb; }
-    .minor-defect { border-left-color: #3b82f6; background: #eff6ff; }
+    .critical-defect { 
+        border-left-color: #ef4444; 
+        background: #fef2f2; 
+        color: #991b1b !important;
+    }
+    .major-defect { 
+        border-left-color: #f59e0b; 
+        background: #fffbeb; 
+        color: #92400e !important;
+    }
+    .minor-defect { 
+        border-left-color: #3b82f6; 
+        background: #eff6ff; 
+        color: #1e40af !important;
+    }
     
     @media (max-width: 768px) {
         .main .block-container { padding: 0.5rem; }
@@ -662,7 +676,7 @@ def generate_multilingual_pdf(order_info, language):
         st.error(f"PDF Error: {str(e)}")
         import traceback
         st.error(traceback.format_exc())
-        return None
+        return None ai_minor_count
         
         qc_data = [
             [translate_text_with_openai('Defect Type', language),
