@@ -1150,8 +1150,9 @@ def calculate_final_decision():
     else:
         return "ACCEPT", "All defects within AQL 2.5 limits"
 
+
 def generate_multilingual_pdf(order_info, language):
-    """Generate PDF with proper multilingual support - fixed English text spacing"""
+    """Generate PDF with proper multilingual support and page break prevention"""
     try:
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, 
@@ -1412,12 +1413,41 @@ def generate_multilingual_pdf(order_info, language):
         
         elements.append(Spacer(1, 15))
         
-        # QC MANAGER REVIEW & AMENDMENTS
+        # =============================================
+        # CRITICAL FIX: Ensure QC Manager Review table and signatures stay together
+        # =============================================
+        
+        # Create a function to add keep-together sections
+        def add_keep_together_section(*content_elements):
+            """Add elements that should stay together on the same page"""
+            # Calculate total height of the section
+            total_height = 0
+            for element in content_elements:
+                if hasattr(element, 'wrap'):
+                    # For Flowable objects
+                    available_width = A4[0] - 4*cm  # Account for margins
+                    available_height = A4[1] - 4*cm
+                    w, h = element.wrap(available_width, available_height)
+                    total_height += h
+                elif isinstance(element, Spacer):
+                    total_height += element.height
+                else:
+                    # Estimate height for other elements
+                    total_height += 20  # Default estimate
+            
+            # If this section is too large for current page, add page break
+            current_page_space = A4[1] - 4*cm  # Approximate space left on current page
+            if total_height > current_page_space * 0.7:  # If section uses more than 70% of page
+                elements.append(PageBreak())
+            
+            # Add all elements of the section
+            for element in content_elements:
+                elements.append(element)
+        
+        # QC MANAGER REVIEW & AMENDMENTS - Keep table and header together
         qc_label = translate_text_with_openai("QC MANAGER REVIEW & AMENDMENTS", language)
         qc_section_style = ParagraphStyle('QCSection', parent=section_style,
                                          fontName=get_bold_font_for_text(qc_label))
-        elements.append(Paragraph(qc_label, qc_section_style))
-        elements.append(Spacer(1, 10))
         
         qc_critical_count = len(st.session_state.defect_store['qc_critical'])
         qc_major_count = len(st.session_state.defect_store['qc_major'])
@@ -1463,8 +1493,14 @@ def generate_multilingual_pdf(order_info, language):
             ('BOTTOMPADDING', (0,0), (-1,-1), 10),
             ('GRID', (0,0), (-1,-1), 1, colors.grey)
         ]))
-        elements.append(qc_table)
-        elements.append(Spacer(1, 20))
+        
+        # Add QC Manager Review section with header and table kept together
+        add_keep_together_section(
+            Paragraph(qc_label, qc_section_style),
+            Spacer(1, 10),
+            qc_table,
+            Spacer(1, 20)
+        )
         
         def add_final_defects(title_key, defect_category, color_obj):
             defects_list = st.session_state.defect_store[defect_category]
@@ -1499,12 +1535,10 @@ def generate_multilingual_pdf(order_info, language):
                                              fontName=notes_font_text)
             elements.append(Paragraph(notes_text, notes_body_style))
         
-        # Signatures Section
+        # SIGNATURES SECTION - Ensure signatures stay together on same page
         signature_label = translate_text_with_openai("SIGNATURES", language)
         sig_section_style = ParagraphStyle('SigSection', parent=signature_style,
                                           fontName=get_bold_font_for_text(signature_label))
-        elements.append(Paragraph(signature_label, sig_section_style))
-        elements.append(Spacer(1, 15))
         
         signature_data = [
             [translate_text_with_openai('Manufacturer Signature', language), "_________________________"],
@@ -1525,7 +1559,13 @@ def generate_multilingual_pdf(order_info, language):
             ('BOTTOMPADDING', (0,0), (-1,-1), 12),
             ('GRID', (0,0), (-1,-1), 1, colors.grey)
         ]))
-        elements.append(signature_table)
+        
+        # Add signatures section with header and table kept together
+        add_keep_together_section(
+            Paragraph(signature_label, sig_section_style),
+            Spacer(1, 15),
+            signature_table
+        )
         
         doc.build(elements)
         return buffer.getvalue()
@@ -1535,7 +1575,6 @@ def generate_multilingual_pdf(order_info, language):
         import traceback
         st.error(traceback.format_exc())
         return None
-
 def render_defect_section_with_audio(defect_type, category_key):
     """Render defect section with audio input option and editing capability"""
     st.markdown(f"### {t(f'{defect_type.lower()}_review')}")
