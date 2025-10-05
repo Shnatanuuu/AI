@@ -16,6 +16,7 @@ from reportlab.lib.enums import TA_CENTER
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 import re
+import hashlib
 
 load_dotenv()
 
@@ -93,7 +94,25 @@ TRANSLATIONS = {
         "defects_found": "Defects Found",
         "overall_assessment": "Overall Assessment",
         "ai_confidence": "AI Confidence",
-        "ai_defects_given": "DEFECTS GIVEN OUT BY AI"
+        "ai_defects_given": "DEFECTS GIVEN OUT BY AI",
+        "record_audio": "🎤 Record Audio",
+        "type_text": "📝 Type Text", 
+        "start_recording": "🎤 Start Recording",
+        "stop_recording": "⏹️ Stop Recording",
+        "new_recording_captured": "New recording captured",
+        "transcribing": "Transcribing your speech...",
+        "transcription_complete": "Transcription Complete!",
+        "speak_clearly": "Speak clearly for 3-10 seconds",
+        "audio_too_short": "Audio seems very short. Please record for at least 2-3 seconds.",
+        "no_text_transcribed": "No text was transcribed. Please speak louder and more clearly.",
+        "use_voice_input": "Use voice input",
+        "use_text_input": "Use text input",
+        "transcribed_text": "Transcribed text:",
+        "click_to_record": "Click the button below to record audio",
+        "edit_defect": "✏️ Edit",
+        "save_edit": "💾 Save",
+        "cancel_edit": "❌ Cancel",
+        "edit_defect_prompt": "Edit defect description:"
     },
     "Mandarin": {
         "app_title": "AI鞋类质量控制检查员",
@@ -153,7 +172,25 @@ TRANSLATIONS = {
         "defects_found": "发现的缺陷",
         "overall_assessment": "整体评估",
         "ai_confidence": "AI置信度",
-        "ai_defects_given": "AI给出的缺陷"
+        "ai_defects_given": "AI给出的缺陷",
+        "record_audio": "🎤 录制音频",
+        "type_text": "📝 输入文本",
+        "start_recording": "🎤 开始录制",
+        "stop_recording": "⏹️ 停止录制", 
+        "new_recording_captured": "新录制已捕获",
+        "transcribing": "正在转录您的语音...",
+        "transcription_complete": "转录完成！",
+        "speak_clearly": "清晰说话3-10秒",
+        "audio_too_short": "音频似乎太短。请至少录制2-3秒。",
+        "no_text_transcribed": "没有转录到文本。请大声清晰地说话。",
+        "use_voice_input": "使用语音输入",
+        "use_text_input": "使用文本输入",
+        "transcribed_text": "转录文本:",
+        "click_to_record": "点击下方按钮录制音频",
+        "edit_defect": "✏️ 编辑",
+        "save_edit": "💾 保存",
+        "cancel_edit": "❌ 取消",
+        "edit_defect_prompt": "编辑缺陷描述:"
     },
     "Cantonese": {
         "app_title": "AI鞋類質量控制檢查員",
@@ -213,7 +250,25 @@ TRANSLATIONS = {
         "defects_found": "發現的缺陷",
         "overall_assessment": "整體評估",
         "ai_confidence": "AI置信度",
-        "ai_defects_given": "AI給出的缺陷"
+        "ai_defects_given": "AI給出的缺陷",
+        "record_audio": "🎤 錄製音頻",
+        "type_text": "📝 輸入文本",
+        "start_recording": "🎤 開始錄製",
+        "stop_recording": "⏹️ 停止錄製",
+        "new_recording_captured": "新錄製已捕獲",
+        "transcribing": "正在轉錄您的語音...",
+        "transcription_complete": "轉錄完成！",
+        "speak_clearly": "清晰說話3-10秒",
+        "audio_too_short": "音頻似乎太短。請至少錄製2-3秒。",
+        "no_text_transcribed": "沒有轉錄到文本。請大聲清晰地說話。",
+        "use_voice_input": "使用語音輸入",
+        "use_text_input": "使用文本輸入",
+        "transcribed_text": "轉錄文本:",
+        "click_to_record": "點擊下方按鈕錄製音頻",
+        "edit_defect": "✏️ 編輯",
+        "save_edit": "💾 保存",
+        "cancel_edit": "❌ 取消",
+        "edit_defect_prompt": "編輯缺陷描述:"
     }
 }
 
@@ -222,6 +277,16 @@ if 'ui_language' not in st.session_state:
     st.session_state.ui_language = "English"
 if 'pdf_language' not in st.session_state:
     st.session_state.pdf_language = "English"
+
+# Voice recording session state
+if 'audio_input_mode' not in st.session_state:
+    st.session_state.audio_input_mode = {}  # Store mode per defect category
+if 'last_audio_hash' not in st.session_state:
+    st.session_state.last_audio_hash = {}
+if 'transcription_text' not in st.session_state:
+    st.session_state.transcription_text = {}
+if 'recording_count' not in st.session_state:
+    st.session_state.recording_count = {}
 
 # Core defect storage
 if 'defect_store' not in st.session_state:
@@ -233,6 +298,12 @@ if 'defect_store' not in st.session_state:
         'qc_major': [],
         'qc_minor': []
     }
+
+# Editing state
+if 'editing_defect' not in st.session_state:
+    st.session_state.editing_defect = None  # (category, defect_id)
+if 'edit_text' not in st.session_state:
+    st.session_state.edit_text = ""
 
 # Production status storage
 if 'production_status' not in st.session_state:
@@ -350,6 +421,13 @@ st.markdown("""
         font-weight: 600;
         font-size: 1rem;
         line-height: 1.5;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .defect-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
     }
     
     .critical-defect { 
@@ -366,6 +444,21 @@ st.markdown("""
         border-left-color: #2563eb; 
         background: #dbeafe !important;
         color: #1e3a8a !important;
+    }
+    
+    /* Voice input styling */
+    .voice-input-section {
+        background: rgba(255, 255, 255, 0.9);
+        border: 2px dashed #667eea;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+    }
+    
+    /* Edit mode styling */
+    .edit-mode {
+        border: 2px solid #667eea !important;
+        background: #f0f4ff !important;
     }
     
     /* Mobile responsiveness */
@@ -400,6 +493,9 @@ st.markdown("""
             font-size: 0.9rem;
             margin: 0.5rem 0;
         }
+        .voice-input-section {
+            padding: 1rem;
+        }
     }
     
     .metric-number { 
@@ -415,6 +511,17 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# Initialize audio input mode for each category
+def init_audio_mode(category):
+    if category not in st.session_state.audio_input_mode:
+        st.session_state.audio_input_mode[category] = "text"
+    if category not in st.session_state.last_audio_hash:
+        st.session_state.last_audio_hash[category] = None
+    if category not in st.session_state.transcription_text:
+        st.session_state.transcription_text[category] = ""
+    if category not in st.session_state.recording_count:
+        st.session_state.recording_count[category] = 0
+
 @st.cache_resource
 def get_openai_client():
     api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
@@ -424,6 +531,89 @@ def get_openai_client():
     return openai.OpenAI(api_key=api_key)
 
 client = get_openai_client()
+
+def transcribe_audio(audio_bytes, category):
+    """Transcribe audio using OpenAI Whisper"""
+    try:
+        # Create a hash of the audio to detect if it's a new recording
+        audio_hash = hashlib.md5(audio_bytes).hexdigest()
+        
+        # Check if this is a new recording
+        is_new_recording = (audio_hash != st.session_state.last_audio_hash.get(category))
+        
+        if is_new_recording:
+            st.session_state.last_audio_hash[category] = audio_hash
+            st.session_state.recording_count[category] = st.session_state.recording_count.get(category, 0) + 1
+            
+            # Check if audio is substantial
+            if len(audio_bytes) < 1000:
+                st.warning(t("audio_too_short"))
+                return None
+            
+            # Process the audio
+            with st.spinner(f"🎧 {t('transcribing')}"):
+                try:
+                    # Convert bytes to file-like object
+                    audio_file = io.BytesIO(audio_bytes)
+                    audio_file.name = "recording.wav"
+                    
+                    # Transcribe using OpenAI Whisper
+                    transcription_response = client.audio.transcriptions.create(
+                        model="whisper-1",
+                        file=audio_file,
+                        response_format="verbose_json",
+                        language=None  # Auto-detect
+                    )
+                    
+                    transcribed_text = transcription_response.text
+                    detected_language = transcription_response.language
+                    
+                    # Map language codes to names
+                    lang_map = {
+                        "en": "English", 
+                        "zh": "Mandarin",
+                        "cmn": "Mandarin",
+                        "yue": "Cantonese"
+                    }
+                    
+                    detected_lang_name = lang_map.get(detected_language, detected_language.upper())
+                    
+                    # If detected language doesn't match UI language, translate
+                    if detected_lang_name != st.session_state.ui_language:
+                        target_lang = st.session_state.ui_language
+                        translation_response = client.chat.completions.create(
+                            model="gpt-4o-mini",
+                            messages=[
+                                {
+                                    "role": "system", 
+                                    "content": f"You are a professional translator. Translate the following text to {target_lang}. Only provide the translation, nothing else."
+                                },
+                                {
+                                    "role": "user", 
+                                    "content": transcribed_text
+                                }
+                            ],
+                            temperature=0.3
+                        )
+                        final_text = translation_response.choices[0].message.content
+                    else:
+                        final_text = transcribed_text
+                    
+                    st.session_state.transcription_text[category] = final_text
+                    st.success(f"✅ {t('transcription_complete')}")
+                    
+                    return final_text
+                    
+                except Exception as e:
+                    st.error(f"❌ Error during transcription: {str(e)}")
+                    return None
+        else:
+            # Same recording as before - return cached text
+            return st.session_state.transcription_text.get(category, "")
+            
+    except Exception as e:
+        st.error(f"❌ Transcription error: {str(e)}")
+        return None
 
 def translate_text_with_openai(text, target_language):
     """Translate text using OpenAI with caching"""
@@ -494,6 +684,233 @@ def remove_defect_from_store(category, defect_id):
         (did, text) for did, text in st.session_state.defect_store[category] 
         if did != defect_id
     ]
+
+def update_defect_in_store(category, defect_id, new_text):
+    """Update a defect's text"""
+    for i, (did, text) in enumerate(st.session_state.defect_store[category]):
+        if did == defect_id:
+            st.session_state.defect_store[category][i] = (defect_id, new_text)
+            break
+
+def add_defect_from_input(input_text, store_category):
+    """Add defect from either text or audio input, handling translation if needed"""
+    cleaned_input = input_text.strip()
+    
+    if st.session_state.ui_language != "English":
+        try:
+            reverse_response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{
+                    "role": "user",
+                    "content": f"Translate this quality control defect description to English. Be precise and accurate. Return ONLY the English translation:\n\n{cleaned_input}"
+                }],
+                max_tokens=200,
+                temperature=0.1
+            )
+            english_text = reverse_response.choices[0].message.content.strip()
+        except Exception as e:
+            st.warning(f"Translation warning: Using original text. Error: {str(e)}")
+            english_text = cleaned_input
+    else:
+        english_text = cleaned_input
+    
+    # Remove measurements from manually added defects too
+    english_text = remove_measurements_from_defect(english_text)
+    add_defect_to_store(store_category, english_text)
+    
+    defect_type = store_category.split('_')[1].capitalize()
+    st.success(f"{t(defect_type.lower())} {t('defect_added')}")
+
+def render_audio_input_section(category, defect_type):
+    """Render audio recording interface for defect input"""
+    init_audio_mode(category)
+    
+    st.markdown(f"**{t('add_defect')} ({t(defect_type)})**")
+    
+    # Input mode selector
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        if st.button(f"🎤 {t('use_voice_input')}", key=f"voice_btn_{category}", width='stretch'):
+            st.session_state.audio_input_mode[category] = "audio"
+            st.rerun()
+    with col2:
+        if st.button(f"📝 {t('use_text_input')}", key=f"text_btn_{category}", width='stretch'):
+            st.session_state.audio_input_mode[category] = "text"
+            st.rerun()
+    
+    if st.session_state.audio_input_mode[category] == "audio":
+        # Audio recording interface
+        st.markdown('<div class="voice-input-section">', unsafe_allow_html=True)
+        try:
+            from streamlit_mic_recorder import mic_recorder
+            
+            st.info(f"💡 {t('speak_clearly')}")
+            
+            # Record audio
+            audio = mic_recorder(
+                start_prompt=f"🎤 {t('start_recording')}",
+                stop_prompt=f"⏹️ {t('stop_recording')}",
+                just_once=False,
+                width='stretch',
+                key=f'recorder_{category}'
+            )
+            
+            if audio and audio.get('bytes'):
+                audio_bytes = audio['bytes']
+                st.audio(audio_bytes)
+                
+                # Transcribe audio
+                transcribed_text = transcribe_audio(audio_bytes, category)
+                
+                if transcribed_text:
+                    # Display transcribed text in an editable text area
+                    edited_text = st.text_area(
+                        t("transcribed_text"),
+                        value=transcribed_text,
+                        height=80,
+                        key=f"transcribed_{category}"
+                    )
+                    
+                    # Add defect button
+                    col1, col2 = st.columns([3, 1])
+                    with col2:
+                        if st.button(f"{t('add_text')}", key=f"add_audio_{category}", width='stretch'):
+                            if edited_text and edited_text.strip():
+                                store_category = f'qc_{category.split("_")[1]}'
+                                add_defect_from_input(edited_text.strip(), store_category)
+                                st.session_state.transcription_text[category] = ""  # Clear after adding
+                                st.rerun()
+        
+        except ImportError:
+            st.error("❌ **Missing Required Package**")
+            st.write("Please install the required package:")
+            st.code("pip install streamlit-mic-recorder", language="bash")
+            st.write("Then restart your Streamlit app.")
+            # Fall back to text input
+            st.session_state.audio_input_mode[category] = "text"
+        except Exception as e:
+            st.error(f"Audio recording error: {str(e)}")
+            st.session_state.audio_input_mode[category] = "text"
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    else:
+        # Text input interface
+        text_input = st.text_input(
+            t("type_defect"), 
+            key=f"new_{category}_text", 
+            placeholder=t("enter_defect"),
+            label_visibility="collapsed"
+        )
+        
+        if st.button(f"{t('add_text')} ({t(defect_type)})", key=f"add_{category}_btn", width='stretch'):
+            if text_input and text_input.strip():
+                store_category = f'qc_{category.split("_")[1]}'
+                add_defect_from_input(text_input.strip(), store_category)
+                st.rerun()
+
+def render_qc_notes_audio_section():
+    """Render audio input for QC Notes"""
+    init_audio_mode("qc_notes")
+    
+    st.markdown(f"### {t('qc_notes')}")
+    
+    # Input mode selector for QC Notes
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        if st.button(f"🎤 {t('use_voice_input')}", key="voice_btn_qc_notes", width='stretch'):
+            st.session_state.audio_input_mode["qc_notes"] = "audio"
+            st.rerun()
+    with col2:
+        if st.button(f"📝 {t('use_text_input')}", key="text_btn_qc_notes", width='stretch'):
+            st.session_state.audio_input_mode["qc_notes"] = "text"
+            st.rerun()
+    
+    if st.session_state.audio_input_mode["qc_notes"] == "audio":
+        # Audio recording interface for QC Notes
+        st.markdown('<div class="voice-input-section">', unsafe_allow_html=True)
+        try:
+            from streamlit_mic_recorder import mic_recorder
+            
+            st.info(f"💡 {t('speak_clearly')}")
+            
+            # Record audio
+            audio = mic_recorder(
+                start_prompt=f"🎤 {t('start_recording')}",
+                stop_prompt=f"⏹️ {t('stop_recording')}",
+                just_once=False,
+                width='stretch',
+                key='recorder_qc_notes'
+            )
+            
+            if audio and audio.get('bytes'):
+                audio_bytes = audio['bytes']
+                st.audio(audio_bytes)
+                
+                # Transcribe audio
+                transcribed_text = transcribe_audio(audio_bytes, "qc_notes")
+                
+                if transcribed_text:
+                    # Display transcribed text in an editable text area
+                    displayed_notes = st.text_area(
+                        t("additional_notes"),
+                        value=transcribed_text,
+                        height=120,
+                        key="qc_notes_audio_textarea"
+                    )
+                    
+                    # Save notes button
+                    if st.button(f"{t('save_notes')}", type="primary", key="save_audio_notes", width='stretch'):
+                        if displayed_notes and displayed_notes.strip():
+                            save_qc_notes(displayed_notes.strip())
+                            st.session_state.transcription_text["qc_notes"] = ""  # Clear after saving
+                            st.rerun()
+        
+        except ImportError:
+            st.error("❌ **Missing Required Package**")
+            st.write("Please install the required package:")
+            st.code("pip install streamlit-mic-recorder", language="bash")
+            st.write("Then restart your Streamlit app.")
+            # Fall back to text input
+            st.session_state.audio_input_mode["qc_notes"] = "text"
+        except Exception as e:
+            st.error(f"Audio recording error: {str(e)}")
+            st.session_state.audio_input_mode["qc_notes"] = "text"
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    else:
+        # Text input interface for QC Notes
+        if 'qc_notes_english' not in st.session_state:
+            st.session_state.qc_notes_english = ''
+        
+        displayed_notes = translate_text_with_openai(st.session_state.qc_notes_english, st.session_state.ui_language) if st.session_state.qc_notes_english else ''
+        
+        qc_notes_input = st.text_area(t("additional_notes"), value=displayed_notes, height=120, key="qc_notes_textarea")
+        
+        if st.button(f"{t('save_notes')}", type="primary", width='stretch'):
+            if qc_notes_input and qc_notes_input.strip():
+                save_qc_notes(qc_notes_input.strip())
+                st.rerun()
+
+def save_qc_notes(notes_text):
+    """Save QC notes with translation if needed"""
+    if st.session_state.ui_language != "English":
+        try:
+            reverse_response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{
+                    "role": "user",
+                    "content": f"Translate this to English. Return ONLY the English translation:\n\n{notes_text}"
+                }],
+                max_tokens=500,
+                temperature=0.1
+            )
+            st.session_state.qc_notes_english = reverse_response.choices[0].message.content.strip()
+        except:
+            st.session_state.qc_notes_english = notes_text
+    else:
+        st.session_state.qc_notes_english = notes_text
+    
+    st.success(f"{t('notes_saved')}")
 
 def encode_image(image):
     buffer = io.BytesIO()
@@ -1119,44 +1536,97 @@ def generate_multilingual_pdf(order_info, language):
         st.error(traceback.format_exc())
         return None
 
-def render_defect_input_section(defect_type, category_key):
-    """Render text input section for adding defects"""
-    st.markdown(f"**{t('add_defect')} ({t(defect_type)})**")
+def render_defect_section_with_audio(defect_type, category_key):
+    """Render defect section with audio input option and editing capability"""
+    st.markdown(f"### {t(f'{defect_type.lower()}_review')}")
     
-    text_input = st.text_input(
-        t("type_defect"), 
-        key=f"new_{category_key}_text", 
-        placeholder=t("enter_defect"),
-        label_visibility="collapsed"
-    )
+    # Display existing defects with remove and edit buttons
+    qc_ids, qc_translated = get_translated_defects(f'qc_{category_key}', st.session_state.ui_language)
     
-    if st.button(f"{t('add_text')} ({t(defect_type)})", key=f"add_{category_key}_btn", use_container_width=True):
-        if text_input and text_input.strip():
-            cleaned_input = text_input.strip()
+    if qc_translated:
+        for idx, (defect_id, defect_text) in enumerate(zip(qc_ids, qc_translated)):
+            # Check if this defect is currently being edited
+            is_editing = (st.session_state.editing_defect == (f'qc_{category_key}', defect_id))
             
-            if st.session_state.ui_language != "English":
-                try:
-                    reverse_response = client.chat.completions.create(
-                        model="gpt-4o-mini",
-                        messages=[{
-                            "role": "user",
-                            "content": f"Translate this quality control defect description to English. Be precise and accurate. Return ONLY the English translation:\n\n{cleaned_input}"
-                        }],
-                        max_tokens=200,
-                        temperature=0.1
+            col1, col2, col3 = st.columns([5, 1, 1])
+            
+            with col1:
+                if is_editing:
+                    # Edit mode - show text input
+                    edited_text = st.text_input(
+                        t("edit_defect_prompt"),
+                        value=st.session_state.edit_text,
+                        key=f"edit_{defect_id}",
+                        label_visibility="collapsed"
                     )
-                    english_text = reverse_response.choices[0].message.content.strip()
-                except Exception as e:
-                    st.warning(f"Translation warning: Using original text. Error: {str(e)}")
-                    english_text = cleaned_input
-            else:
-                english_text = cleaned_input
+                    st.session_state.edit_text = edited_text
+                else:
+                    # Display mode - show defect with hover effect
+                    css_class = f"defect-item {category_key}-defect"
+                    if is_editing:
+                        css_class += " edit-mode"
+                    st.markdown(f'<div class="{css_class}" onclick="alert(\'Double click to edit\')">{defect_text}</div>', unsafe_allow_html=True)
             
-            # Remove measurements from manually added defects too
-            english_text = remove_measurements_from_defect(english_text)
-            add_defect_to_store(f'qc_{category_key}', english_text)
-            st.success(f"{t(defect_type)} {t('defect_added')}")
-            st.rerun()
+            with col2:
+                if is_editing:
+                    # Save button
+                    if st.button(f"💾", key=f"save_{defect_id}"):
+                        if st.session_state.edit_text.strip():
+                            # Translate back to English if needed
+                            if st.session_state.ui_language != "English":
+                                try:
+                                    reverse_response = client.chat.completions.create(
+                                        model="gpt-4o-mini",
+                                        messages=[{
+                                            "role": "user",
+                                            "content": f"Translate this quality control defect description to English. Be precise and accurate. Return ONLY the English translation:\n\n{st.session_state.edit_text.strip()}"
+                                        }],
+                                        max_tokens=200,
+                                        temperature=0.1
+                                    )
+                                    english_text = reverse_response.choices[0].message.content.strip()
+                                except Exception as e:
+                                    st.warning(f"Translation warning: Using original text. Error: {str(e)}")
+                                    english_text = st.session_state.edit_text.strip()
+                            else:
+                                english_text = st.session_state.edit_text.strip()
+                            
+                            # Remove measurements
+                            english_text = remove_measurements_from_defect(english_text)
+                            
+                            # Update the defect
+                            update_defect_in_store(f'qc_{category_key}', defect_id, english_text)
+                            st.session_state.editing_defect = None
+                            st.session_state.edit_text = ""
+                            st.rerun()
+                else:
+                    # Edit button
+                    if st.button(f"✏️", key=f"edit_{defect_id}"):
+                        st.session_state.editing_defect = (f'qc_{category_key}', defect_id)
+                        # Get the English text for editing
+                        for did, text in st.session_state.defect_store[f'qc_{category_key}']:
+                            if did == defect_id:
+                                st.session_state.edit_text = text
+                                break
+                        st.rerun()
+            
+            with col3:
+                if is_editing:
+                    # Cancel button
+                    if st.button(f"❌", key=f"cancel_{defect_id}"):
+                        st.session_state.editing_defect = None
+                        st.session_state.edit_text = ""
+                        st.rerun()
+                else:
+                    # Remove button
+                    if st.button("❌", key=f"remove_{category_key}_{defect_id}"):
+                        remove_defect_from_store(f'qc_{category_key}', defect_id)
+                        st.rerun()
+    else:
+        st.success(f"{t('no_defects')}")
+    
+    # Use the new audio-enabled input section
+    render_audio_input_section(f"input_{category_key}", defect_type.lower())
 
 # Language Selector in Sidebar
 with st.sidebar:
@@ -1242,10 +1712,10 @@ if uploaded_files and len(uploaded_files) == 4:
     for idx, file in enumerate(uploaded_files):
         uploaded_images.append(file)
         with cols[idx]:
-            st.image(Image.open(file), caption=f"Image {idx + 1}", use_container_width=True)
+            st.image(Image.open(file), caption=f"Image {idx + 1}", width='stretch')
 
 if len(uploaded_images) == 4:
-    if st.button(f"{t('start_inspection')}", type="primary", use_container_width=True):
+    if st.button(f"{t('start_inspection')}", type="primary", width='stretch'):
         progress = st.progress(0)
         analyses = []
         
@@ -1329,100 +1799,33 @@ if 'analyses_done' in st.session_state and st.session_state.analyses_done:
     </div>
     """, unsafe_allow_html=True)
     
-    qc_critical_ids, qc_critical_translated = get_translated_defects('qc_critical', st.session_state.ui_language)
-    qc_major_ids, qc_major_translated = get_translated_defects('qc_major', st.session_state.ui_language)
-    qc_minor_ids, qc_minor_translated = get_translated_defects('qc_minor', st.session_state.ui_language)
-    
-    st.markdown(f"### {t('critical_review')}")
-    
-    if qc_critical_translated:
-        for idx, (defect_id, defect_text) in enumerate(zip(qc_critical_ids, qc_critical_translated)):
-            col1, col2 = st.columns([5, 1])
-            with col1:
-                st.markdown(f'<div class="defect-item critical-defect">{defect_text}</div>', unsafe_allow_html=True)
-            with col2:
-                if st.button("❌", key=f"remove_crit_{defect_id}"):
-                    remove_defect_from_store('qc_critical', defect_id)
-                    st.rerun()
-    else:
-        st.success(f"{t('no_defects')}")
-    
-    render_defect_input_section("critical", "critical")
+    # Critical defects section with audio and editing
+    render_defect_section_with_audio("critical", "critical")
     
     st.markdown("---")
     
-    st.markdown(f"### {t('major_review')}")
-    
-    if qc_major_translated:
-        for idx, (defect_id, defect_text) in enumerate(zip(qc_major_ids, qc_major_translated)):
-            col1, col2 = st.columns([5, 1])
-            with col1:
-                st.markdown(f'<div class="defect-item major-defect">{defect_text}</div>', unsafe_allow_html=True)
-            with col2:
-                if st.button("❌", key=f"remove_maj_{defect_id}"):
-                    remove_defect_from_store('qc_major', defect_id)
-                    st.rerun()
-    else:
-        st.success(f"{t('no_defects')}")
-    
-    render_defect_input_section("major", "major")
+    # Major defects section with audio and editing  
+    render_defect_section_with_audio("major", "major")
     
     st.markdown("---")
     
-    st.markdown(f"### {t('minor_review')}")
-    
-    if qc_minor_translated:
-        for idx, (defect_id, defect_text) in enumerate(zip(qc_minor_ids, qc_minor_translated)):
-            col1, col2 = st.columns([5, 1])
-            with col1:
-                st.markdown(f'<div class="defect-item minor-defect">{defect_text}</div>', unsafe_allow_html=True)
-            with col2:
-                if st.button("❌", key=f"remove_min_{defect_id}"):
-                    remove_defect_from_store('qc_minor', defect_id)
-                    st.rerun()
-    else:
-        st.success(f"{t('no_defects')}")
-    
-    render_defect_input_section("minor", "minor")
+    # Minor defects section with audio and editing
+    render_defect_section_with_audio("minor", "minor")
     
     st.markdown("---")
     
-    st.markdown(f"### {t('qc_notes')}")
-    
-    if 'qc_notes_english' not in st.session_state:
-        st.session_state.qc_notes_english = ''
-    
-    displayed_notes = translate_text_with_openai(st.session_state.qc_notes_english, st.session_state.ui_language) if st.session_state.qc_notes_english else ''
-    
-    qc_notes_input = st.text_area(t("additional_notes"), value=displayed_notes, height=120, key="qc_notes_textarea")
-    
-    if st.button(f"{t('save_notes')}", type="primary", use_container_width=True):
-        if qc_notes_input and qc_notes_input.strip():
-            if st.session_state.ui_language != "English":
-                try:
-                    reverse_response = client.chat.completions.create(
-                        model="gpt-4o-mini",
-                        messages=[{
-                            "role": "user",
-                            "content": f"Translate this to English. Return ONLY the English translation:\n\n{qc_notes_input}"
-                        }],
-                        max_tokens=500,
-                        temperature=0.1
-                    )
-                    st.session_state.qc_notes_english = reverse_response.choices[0].message.content.strip()
-                except:
-                    st.session_state.qc_notes_english = qc_notes_input
-            else:
-                st.session_state.qc_notes_english = qc_notes_input
-            
-            st.success(f"{t('notes_saved')}")
-            st.rerun()
+    # QC Notes with audio
+    render_qc_notes_audio_section()
     
     st.markdown("---")
     
     final_result, final_reason = calculate_final_decision()
     
     st.markdown(f"## {t('final_summary')}")
+    
+    qc_critical_ids, qc_critical_translated = get_translated_defects('qc_critical', st.session_state.ui_language)
+    qc_major_ids, qc_major_translated = get_translated_defects('qc_major', st.session_state.ui_language)
+    qc_minor_ids, qc_minor_translated = get_translated_defects('qc_minor', st.session_state.ui_language)
     
     qc_critical_count = len(qc_critical_ids)
     qc_major_count = len(qc_major_ids)
@@ -1471,7 +1874,7 @@ if 'analyses_done' in st.session_state and st.session_state.analyses_done:
     st.markdown(f"## {t('generate_pdf')}")
     st.info(f"{t('pdf_language_info')} {LANGUAGES[st.session_state.pdf_language]['flag']} {LANGUAGES[st.session_state.pdf_language]['label']}")
     
-    if st.button(f"{t('generate_pdf')}", type="primary", use_container_width=True):
+    if st.button(f"{t('generate_pdf')}", type="primary", width='stretch'):
         with st.spinner(t("generating_pdf")):
             pdf_bytes = generate_multilingual_pdf(
                 order_info, 
@@ -1487,7 +1890,7 @@ if 'analyses_done' in st.session_state and st.session_state.analyses_done:
                 file_name=filename,
                 mime="application/pdf",
                 type="primary",
-                use_container_width=True
+                width='stretch'
             )
             st.success(f"✅ {t('pdf_ready')}")
         else:
