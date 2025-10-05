@@ -1887,8 +1887,7 @@ if 'analyses_done' in st.session_state and st.session_state.analyses_done:
             <div class="metric-card" style="border-left: 4px solid {color};">
                 <div class="metric-number" style="color: {color};">{count}</div>
                 <div class="metric-label">{label}</div>
-                <div style="font-size: 0.85rem; margin-top: 0.5rem;">{icon} {abs(change)} {t('from_ai')}</div>
-            </div>
+            <div style="font-size: 0.85rem; margin-top: 0.5rem; color: #374151; font-weight: 600;">{icon} {abs(change)} {t('from_ai')}</div>
             """, unsafe_allow_html=True)
     
     result_colors_final = {
