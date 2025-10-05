@@ -730,11 +730,11 @@ def render_audio_input_section(category, defect_type):
     # Input mode selector
     col1, col2 = st.columns([1, 1])
     with col1:
-        if st.button(f"🎤 {t('use_voice_input')}", key=f"voice_btn_{category}", width='stretch'):
+        if st.button(f"🎤 {t('use_voice_input')}", key=f"voice_btn_{category}", use_container_width=True):
             st.session_state.audio_input_mode[category] = "audio"
             st.rerun()
     with col2:
-        if st.button(f"📝 {t('use_text_input')}", key=f"text_btn_{category}", width='stretch'):
+        if st.button(f"📝 {t('use_text_input')}", key=f"text_btn_{category}", use_container_width=True):
             st.session_state.audio_input_mode[category] = "text"
             st.rerun()
     
@@ -751,7 +751,7 @@ def render_audio_input_section(category, defect_type):
                 start_prompt=f"🎤 {t('start_recording')}",
                 stop_prompt=f"⏹️ {t('stop_recording')}",
                 just_once=False,
-                width='stretch',
+                use_container_width=True,
                 key=f'recorder_{category}'
             )
             
@@ -774,7 +774,7 @@ def render_audio_input_section(category, defect_type):
                     # Add defect button
                     col1, col2 = st.columns([3, 1])
                     with col2:
-                        if st.button(f"{t('add_text')}", key=f"add_audio_{category}", width='stretch'):
+                        if st.button(f"{t('add_text')}", key=f"add_audio_{category}", use_container_width=True):
                             if edited_text and edited_text.strip():
                                 store_category = f'qc_{category.split("_")[1]}'
                                 add_defect_from_input(edited_text.strip(), store_category)
@@ -802,7 +802,7 @@ def render_audio_input_section(category, defect_type):
             label_visibility="collapsed"
         )
         
-        if st.button(f"{t('add_text')} ({t(defect_type)})", key=f"add_{category}_btn", width='stretch'):
+        if st.button(f"{t('add_text')} ({t(defect_type)})", key=f"add_{category}_btn", use_container_width=True):
             if text_input and text_input.strip():
                 store_category = f'qc_{category.split("_")[1]}'
                 add_defect_from_input(text_input.strip(), store_category)
@@ -817,11 +817,11 @@ def render_qc_notes_audio_section():
     # Input mode selector for QC Notes
     col1, col2 = st.columns([1, 1])
     with col1:
-        if st.button(f"🎤 {t('use_voice_input')}", key="voice_btn_qc_notes", width='stretch'):
+        if st.button(f"🎤 {t('use_voice_input')}", key="voice_btn_qc_notes", use_container_width=True):
             st.session_state.audio_input_mode["qc_notes"] = "audio"
             st.rerun()
     with col2:
-        if st.button(f"📝 {t('use_text_input')}", key="text_btn_qc_notes", width='stretch'):
+        if st.button(f"📝 {t('use_text_input')}", key="text_btn_qc_notes", use_container_width=True):
             st.session_state.audio_input_mode["qc_notes"] = "text"
             st.rerun()
     
@@ -838,7 +838,7 @@ def render_qc_notes_audio_section():
                 start_prompt=f"🎤 {t('start_recording')}",
                 stop_prompt=f"⏹️ {t('stop_recording')}",
                 just_once=False,
-                width='stretch',
+                use_container_width=True,
                 key='recorder_qc_notes'
             )
             
@@ -859,7 +859,7 @@ def render_qc_notes_audio_section():
                     )
                     
                     # Save notes button
-                    if st.button(f"{t('save_notes')}", type="primary", key="save_audio_notes", width='stretch'):
+                    if st.button(f"{t('save_notes')}", type="primary", key="save_audio_notes", use_container_width=True):
                         if displayed_notes and displayed_notes.strip():
                             save_qc_notes(displayed_notes.strip())
                             st.session_state.transcription_text["qc_notes"] = ""  # Clear after saving
@@ -886,7 +886,7 @@ def render_qc_notes_audio_section():
         
         qc_notes_input = st.text_area(t("additional_notes"), value=displayed_notes, height=120, key="qc_notes_textarea")
         
-        if st.button(f"{t('save_notes')}", type="primary", width='stretch'):
+        if st.button(f"{t('save_notes')}", type="primary", use_container_width=True):
             if qc_notes_input and qc_notes_input.strip():
                 save_qc_notes(qc_notes_input.strip())
                 st.rerun()
@@ -1712,10 +1712,10 @@ if uploaded_files and len(uploaded_files) == 4:
     for idx, file in enumerate(uploaded_files):
         uploaded_images.append(file)
         with cols[idx]:
-            st.image(Image.open(file), caption=f"Image {idx + 1}", width='stretch')
+            st.image(Image.open(file), caption=f"Image {idx + 1}", use_container_width=True)
 
 if len(uploaded_images) == 4:
-    if st.button(f"{t('start_inspection')}", type="primary", width='stretch'):
+    if st.button(f"{t('start_inspection')}", type="primary", use_container_width=True):
         progress = st.progress(0)
         analyses = []
         
@@ -1874,7 +1874,7 @@ if 'analyses_done' in st.session_state and st.session_state.analyses_done:
     st.markdown(f"## {t('generate_pdf')}")
     st.info(f"{t('pdf_language_info')} {LANGUAGES[st.session_state.pdf_language]['flag']} {LANGUAGES[st.session_state.pdf_language]['label']}")
     
-    if st.button(f"{t('generate_pdf')}", type="primary", width='stretch'):
+    if st.button(f"{t('generate_pdf')}", type="primary", use_container_width=True):
         with st.spinner(t("generating_pdf")):
             pdf_bytes = generate_multilingual_pdf(
                 order_info, 
@@ -1890,7 +1890,7 @@ if 'analyses_done' in st.session_state and st.session_state.analyses_done:
                 file_name=filename,
                 mime="application/pdf",
                 type="primary",
-                width='stretch'
+                use_container_width=True
             )
             st.success(f"✅ {t('pdf_ready')}")
         else:
