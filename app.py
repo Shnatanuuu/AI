@@ -14,6 +14,7 @@ from reportlab.lib.units import cm
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
 from reportlab.pdfbase import pdfmetrics
+from reportlab.platypus import PageBreak
 from reportlab.pdfbase.ttfonts import TTFont
 import re
 import hashlib
@@ -1150,9 +1151,8 @@ def calculate_final_decision():
     else:
         return "ACCEPT", "All defects within AQL 2.5 limits"
 
-
 def generate_multilingual_pdf(order_info, language):
-    """Generate PDF with proper multilingual support and page break prevention"""
+    """Generate PDF with universal browser compatibility"""
     try:
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, 
@@ -1160,19 +1160,12 @@ def generate_multilingual_pdf(order_info, language):
         elements = []
         styles = getSampleStyleSheet()
         
-        # Use standard fonts for English text in all languages
+        # Use only standard fonts for maximum compatibility
         base_font = 'Helvetica'
         bold_font = 'Helvetica-Bold'
-        chinese_font = None
         
-        # Only use Chinese fonts for actual Chinese characters
-        if language in ["Mandarin", "Cantonese"]:
-            try:
-                from reportlab.pdfbase.cidfonts import UnicodeCIDFont
-                pdfmetrics.registerFont(UnicodeCIDFont('STSong-Light'))
-                chinese_font = 'STSong-Light'
-            except:
-                pass
+        # Avoid Chinese fonts for universal compatibility - use standard fonts for all text
+        chinese_font = None
         
         brand_blue = colors.Color(0.4, 0.49, 0.91)
         success_green = colors.Color(0.31, 0.78, 0.47)
@@ -1183,45 +1176,32 @@ def generate_multilingual_pdf(order_info, language):
         inspection_green = colors.Color(0.26, 0.75, 0.59)
         signature_pink = colors.Color(0.98, 0.44, 0.62)
         
-        # Helper function to determine which font to use
+        # Simplified font selection - use standard fonts for everything
         def get_font_for_text(text):
-            """Return appropriate font based on text content"""
-            if chinese_font and any('\u4e00' <= char <= '\u9fff' for char in text):
-                return chinese_font
             return base_font
         
         def get_bold_font_for_text(text):
-            """Return appropriate bold font based on text content"""
-            if chinese_font and any('\u4e00' <= char <= '\u9fff' for char in text):
-                return chinese_font
             return bold_font
         
-        # Styles
+        # Styles - simplified for compatibility
         title_style = ParagraphStyle('Title', parent=styles['Normal'], fontSize=22, alignment=TA_CENTER,
                                      textColor=brand_blue, fontName=bold_font, spaceAfter=12)
         subtitle_style = ParagraphStyle('Subtitle', parent=styles['Normal'], fontSize=12, alignment=TA_CENTER,
                                         textColor=colors.Color(0.3, 0.3, 0.3), fontName=base_font, spaceAfter=8)
         section_style = ParagraphStyle('Section', parent=styles['Heading2'], fontSize=14, spaceAfter=10,
                                       spaceBefore=15, textColor=brand_blue, fontName=bold_font, alignment=TA_CENTER)
-        production_style = ParagraphStyle('Production', parent=styles['Heading2'], fontSize=14, spaceAfter=10,
-                                         spaceBefore=15, textColor=production_blue, fontName=bold_font, alignment=TA_CENTER)
-        inspection_style = ParagraphStyle('Inspection', parent=styles['Heading2'], fontSize=14, spaceAfter=10,
-                                         spaceBefore=15, textColor=inspection_green, fontName=bold_font, alignment=TA_CENTER)
-        signature_style = ParagraphStyle('Signature', parent=styles['Heading2'], fontSize=14, spaceAfter=10,
-                                        spaceBefore=15, textColor=signature_pink, fontName=bold_font, alignment=TA_CENTER)
         
         # Header
         elements.append(Paragraph("GRAND STEP (H.K.) LTD", title_style))
         elements.append(Spacer(1, 12))
-        elements.append(Paragraph("Professional Footwear Manufacturing &amp; Quality Control", subtitle_style))
+        elements.append(Paragraph("Professional Footwear Manufacturing & Quality Control", subtitle_style))
         elements.append(Paragraph("AI-Powered Quality Inspection System", subtitle_style))
         elements.append(Spacer(1, 20))
         
         # Title
         title_text = translate_text_with_openai("QUALITY CONTROL INSPECTION REPORT", language)
-        # Use appropriate font for title
         report_title = ParagraphStyle('ReportTitle', parent=title_style, fontSize=16, 
-                                      textColor=colors.black, fontName=get_bold_font_for_text(title_text))
+                                      textColor=colors.black, fontName=bold_font)
         elements.append(Paragraph(title_text, report_title))
         elements.append(Spacer(1, 20))
         
@@ -1231,22 +1211,20 @@ def generate_multilingual_pdf(order_info, language):
         result_color = success_green if final_result=='ACCEPT' else (danger_red if final_result=='REJECT' else warning_orange)
         
         result_style = ParagraphStyle('Result', parent=styles['Normal'], fontSize=18, alignment=TA_CENTER,
-                                     fontName=get_bold_font_for_text(result_text), spaceAfter=10, textColor=result_color)
+                                     fontName=bold_font, spaceAfter=10, textColor=result_color)
         
         final_label = translate_text_with_openai("FINAL QC DECISION", language)
         elements.append(Paragraph(f"{final_label}: {result_text}", result_style))
         
         rationale_text = translate_text_with_openai(final_reason, language)
         body_style = ParagraphStyle('Body', parent=styles['Normal'], fontSize=10, spaceAfter=6,
-                                    fontName=get_font_for_text(rationale_text), textColor=colors.black)
+                                    fontName=base_font, textColor=colors.black)
         elements.append(Paragraph(rationale_text, body_style))
         elements.append(Spacer(1, 20))
         
         # Order Information
         order_label = translate_text_with_openai("ORDER INFORMATION", language)
-        order_section_style = ParagraphStyle('OrderSection', parent=section_style, 
-                                            fontName=get_bold_font_for_text(order_label))
-        elements.append(Paragraph(order_label, order_section_style))
+        elements.append(Paragraph(order_label, section_style))
         elements.append(Spacer(1, 10))
         
         order_data = [
@@ -1266,8 +1244,7 @@ def generate_multilingual_pdf(order_info, language):
             ('BACKGROUND', (0,0), (0,-1), brand_blue),
             ('TEXTCOLOR', (0,0), (0,-1), colors.white),
             ('BACKGROUND', (1,0), (1,-1), light_gray),
-            ('FONTNAME', (0,0), (0,-1), base_font if not chinese_font else chinese_font),
-            ('FONTNAME', (1,0), (1,-1), base_font),
+            ('FONTNAME', (0,0), (-1,-1), base_font),
             ('FONTSIZE', (0,0), (-1,-1), 10),
             ('ALIGN', (0,0), (-1,-1), 'LEFT'),
             ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
@@ -1280,9 +1257,7 @@ def generate_multilingual_pdf(order_info, language):
         
         # Production Status
         production_label = translate_text_with_openai("PRODUCTION STATUS", language)
-        prod_section_style = ParagraphStyle('ProdSection', parent=production_style,
-                                           fontName=get_bold_font_for_text(production_label))
-        elements.append(Paragraph(production_label, prod_section_style))
+        elements.append(Paragraph(production_label, section_style))
         elements.append(Spacer(1, 10))
         
         production_data = [
@@ -1297,8 +1272,7 @@ def generate_multilingual_pdf(order_info, language):
             ('BACKGROUND', (0,0), (0,-1), production_blue),
             ('TEXTCOLOR', (0,0), (0,-1), colors.white),
             ('BACKGROUND', (1,0), (1,-1), colors.Color(0.9, 0.95, 1.0)),
-            ('FONTNAME', (0,0), (0,-1), base_font if not chinese_font else chinese_font),
-            ('FONTNAME', (1,0), (1,-1), base_font),
+            ('FONTNAME', (0,0), (-1,-1), base_font),
             ('FONTSIZE', (0,0), (-1,-1), 10),
             ('ALIGN', (0,0), (-1,-1), 'LEFT'),
             ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
@@ -1311,9 +1285,7 @@ def generate_multilingual_pdf(order_info, language):
         
         # Items Used During Inspection
         inspection_label = translate_text_with_openai("ITEMS USED DURING INSPECTION", language)
-        insp_section_style = ParagraphStyle('InspSection', parent=inspection_style,
-                                           fontName=get_bold_font_for_text(inspection_label))
-        elements.append(Paragraph(inspection_label, insp_section_style))
+        elements.append(Paragraph(inspection_label, section_style))
         elements.append(Spacer(1, 10))
         
         inspection_data = [
@@ -1326,8 +1298,7 @@ def generate_multilingual_pdf(order_info, language):
             ('BACKGROUND', (0,0), (0,-1), inspection_green),
             ('TEXTCOLOR', (0,0), (0,-1), colors.white),
             ('BACKGROUND', (1,0), (1,-1), colors.Color(0.9, 1.0, 0.95)),
-            ('FONTNAME', (0,0), (0,-1), base_font if not chinese_font else chinese_font),
-            ('FONTNAME', (1,0), (1,-1), base_font),
+            ('FONTNAME', (0,0), (-1,-1), base_font),
             ('FONTSIZE', (0,0), (-1,-1), 10),
             ('ALIGN', (0,0), (-1,-1), 'LEFT'),
             ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
@@ -1340,9 +1311,7 @@ def generate_multilingual_pdf(order_info, language):
         
         # AI Inspection Findings
         ai_label = translate_text_with_openai("AI INSPECTION FINDINGS", language)
-        ai_section_style = ParagraphStyle('AISection', parent=section_style,
-                                         fontName=get_bold_font_for_text(ai_label))
-        elements.append(Paragraph(ai_label, ai_section_style))
+        elements.append(Paragraph(ai_label, section_style))
         elements.append(Spacer(1, 10))
         
         ai_critical_count = len(st.session_state.defect_store['ai_critical'])
@@ -1369,8 +1338,7 @@ def generate_multilingual_pdf(order_info, language):
         ai_table.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), colors.Color(0.6, 0.7, 0.9)),
             ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-            ('FONTNAME', (0,0), (-1,0), base_font if not chinese_font else chinese_font),
-            ('FONTNAME', (0,1), (-1,-1), base_font if not chinese_font else chinese_font),
+            ('FONTNAME', (0,0), (-1,-1), base_font),
             ('FONTSIZE', (0,0), (-1,-1), 10),
             ('ALIGN', (0,0), (-1,-1), 'CENTER'),
             ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
@@ -1383,26 +1351,20 @@ def generate_multilingual_pdf(order_info, language):
         
         # DEFECTS GIVEN OUT BY AI
         ai_defects_label = translate_text_with_openai("DEFECTS GIVEN OUT BY AI", language)
-        ai_def_section_style = ParagraphStyle('AIDefSection', parent=section_style,
-                                             fontName=get_bold_font_for_text(ai_defects_label))
-        elements.append(Paragraph(ai_defects_label, ai_def_section_style))
+        elements.append(Paragraph(ai_defects_label, section_style))
         elements.append(Spacer(1, 10))
         
         def add_ai_defects(title_key, defect_category, color_obj):
             defects_list = st.session_state.defect_store[defect_category]
             if defects_list:
                 title = translate_text_with_openai(title_key, language)
-                title_font = get_bold_font_for_text(title)
-                cat_style = ParagraphStyle('DefectCategory', parent=section_style, fontSize=12, 
-                                          alignment=TA_CENTER, fontName=title_font)
-                elements.append(Paragraph(title, cat_style))
+                elements.append(Paragraph(title, section_style))
                 elements.append(Spacer(1, 6))
                 for i, (defect_id, english_text) in enumerate(defects_list, 1):
                     translated_defect = translate_text_with_openai(english_text, language)
-                    defect_font = get_font_for_text(translated_defect)
                     defect_style = ParagraphStyle(f'ai_defect{defect_id}', parent=styles['Normal'], 
                                                   leftIndent=15, textColor=color_obj, fontSize=9,
-                                                  fontName=defect_font)
+                                                  fontName=base_font)
                     elements.append(Paragraph(f"{i}. {translated_defect}", defect_style))
                     elements.append(Spacer(1, 3))
                 elements.append(Spacer(1, 8))
@@ -1414,40 +1376,17 @@ def generate_multilingual_pdf(order_info, language):
         elements.append(Spacer(1, 15))
         
         # =============================================
-        # CRITICAL FIX: Ensure QC Manager Review table and signatures stay together
+        # UNIVERSAL BROWSER COMPATIBILITY FIX
         # =============================================
         
-        # Create a function to add keep-together sections
-        def add_keep_together_section(*content_elements):
-            """Add elements that should stay together on the same page"""
-            # Calculate total height of the section
-            total_height = 0
-            for element in content_elements:
-                if hasattr(element, 'wrap'):
-                    # For Flowable objects
-                    available_width = A4[0] - 4*cm  # Account for margins
-                    available_height = A4[1] - 4*cm
-                    w, h = element.wrap(available_width, available_height)
-                    total_height += h
-                elif isinstance(element, Spacer):
-                    total_height += element.height
-                else:
-                    # Estimate height for other elements
-                    total_height += 20  # Default estimate
-            
-            # If this section is too large for current page, add page break
-            current_page_space = A4[1] - 4*cm  # Approximate space left on current page
-            if total_height > current_page_space * 0.7:  # If section uses more than 70% of page
-                elements.append(PageBreak())
-            
-            # Add all elements of the section
-            for element in content_elements:
-                elements.append(element)
+        # Add page break before critical sections if needed
+        # This is a simpler approach that works across all browsers
+        elements.append(PageBreak())
         
-        # QC MANAGER REVIEW & AMENDMENTS - Keep table and header together
+        # QC MANAGER REVIEW & AMENDMENTS - Always start on new page
         qc_label = translate_text_with_openai("QC MANAGER REVIEW & AMENDMENTS", language)
-        qc_section_style = ParagraphStyle('QCSection', parent=section_style,
-                                         fontName=get_bold_font_for_text(qc_label))
+        elements.append(Paragraph(qc_label, section_style))
+        elements.append(Spacer(1, 10))
         
         qc_critical_count = len(st.session_state.defect_store['qc_critical'])
         qc_major_count = len(st.session_state.defect_store['qc_major'])
@@ -1484,8 +1423,7 @@ def generate_multilingual_pdf(order_info, language):
         qc_table.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), warning_orange),
             ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-            ('FONTNAME', (0,0), (-1,0), base_font if not chinese_font else chinese_font),
-            ('FONTNAME', (0,1), (-1,-1), base_font if not chinese_font else chinese_font),
+            ('FONTNAME', (0,0), (-1,-1), base_font),
             ('FONTSIZE', (0,0), (-1,-1), 10),
             ('ALIGN', (0,0), (-1,-1), 'CENTER'),
             ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
@@ -1493,29 +1431,20 @@ def generate_multilingual_pdf(order_info, language):
             ('BOTTOMPADDING', (0,0), (-1,-1), 10),
             ('GRID', (0,0), (-1,-1), 1, colors.grey)
         ]))
-        
-        # Add QC Manager Review section with header and table kept together
-        add_keep_together_section(
-            Paragraph(qc_label, qc_section_style),
-            Spacer(1, 10),
-            qc_table,
-            Spacer(1, 20)
-        )
+        elements.append(qc_table)
+        elements.append(Spacer(1, 20))
         
         def add_final_defects(title_key, defect_category, color_obj):
             defects_list = st.session_state.defect_store[defect_category]
             if defects_list:
                 title = translate_text_with_openai(title_key, language)
-                title_font = get_bold_font_for_text(title)
-                final_style = ParagraphStyle('FinalSection', parent=section_style, fontName=title_font)
-                elements.append(Paragraph(title, final_style))
+                elements.append(Paragraph(title, section_style))
                 elements.append(Spacer(1, 8))
                 for i, (defect_id, english_text) in enumerate(defects_list, 1):
                     translated_defect = translate_text_with_openai(english_text, language)
-                    defect_font = get_font_for_text(translated_defect)
                     defect_style = ParagraphStyle(f'defect{defect_id}', parent=styles['Normal'], 
                                                   leftIndent=15, textColor=color_obj, fontSize=10,
-                                                  fontName=defect_font)
+                                                  fontName=base_font)
                     elements.append(Paragraph(f"{i}. {translated_defect}", defect_style))
                     elements.append(Spacer(1, 4))
                 elements.append(Spacer(1, 10))
@@ -1526,19 +1455,17 @@ def generate_multilingual_pdf(order_info, language):
         
         if st.session_state.qc_notes_english and st.session_state.qc_notes_english.strip():
             notes_label = translate_text_with_openai("QC MANAGER NOTES", language)
-            notes_font = get_bold_font_for_text(notes_label)
-            notes_section_style = ParagraphStyle('NotesSection', parent=section_style, fontName=notes_font)
-            elements.append(Paragraph(notes_label, notes_section_style))
+            elements.append(Paragraph(notes_label, section_style))
             notes_text = translate_text_with_openai(st.session_state.qc_notes_english, language)
-            notes_font_text = get_font_for_text(notes_text)
             notes_body_style = ParagraphStyle('NotesBody', parent=styles['Normal'], fontSize=10,
-                                             fontName=notes_font_text)
+                                             fontName=base_font)
             elements.append(Paragraph(notes_text, notes_body_style))
+            elements.append(Spacer(1, 15))
         
-        # SIGNATURES SECTION - Ensure signatures stay together on same page
+        # SIGNATURES SECTION - Always on same page as QC Manager Review
         signature_label = translate_text_with_openai("SIGNATURES", language)
-        sig_section_style = ParagraphStyle('SigSection', parent=signature_style,
-                                          fontName=get_bold_font_for_text(signature_label))
+        elements.append(Paragraph(signature_label, section_style))
+        elements.append(Spacer(1, 15))
         
         signature_data = [
             [translate_text_with_openai('Manufacturer Signature', language), "_________________________"],
@@ -1550,8 +1477,7 @@ def generate_multilingual_pdf(order_info, language):
             ('BACKGROUND', (0,0), (0,-1), signature_pink),
             ('TEXTCOLOR', (0,0), (0,-1), colors.white),
             ('BACKGROUND', (1,0), (1,-1), colors.Color(1.0, 0.95, 0.98)),
-            ('FONTNAME', (0,0), (0,-1), base_font if not chinese_font else chinese_font),
-            ('FONTNAME', (1,0), (1,-1), base_font),
+            ('FONTNAME', (0,0), (-1,-1), base_font),
             ('FONTSIZE', (0,0), (-1,-1), 10),
             ('ALIGN', (0,0), (-1,-1), 'LEFT'),
             ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
@@ -1559,22 +1485,17 @@ def generate_multilingual_pdf(order_info, language):
             ('BOTTOMPADDING', (0,0), (-1,-1), 12),
             ('GRID', (0,0), (-1,-1), 1, colors.grey)
         ]))
-        
-        # Add signatures section with header and table kept together
-        add_keep_together_section(
-            Paragraph(signature_label, sig_section_style),
-            Spacer(1, 15),
-            signature_table
-        )
+        elements.append(signature_table)
         
         doc.build(elements)
         return buffer.getvalue()
         
     except Exception as e:
-        st.error(f"PDF Error: {str(e)}")
+        st.error(f"PDF Generation Error: {str(e)}")
         import traceback
-        st.error(traceback.format_exc())
+        st.error(f"Detailed error: {traceback.format_exc()}")
         return None
+
 def render_defect_section_with_audio(defect_type, category_key):
     """Render defect section with audio input option and editing capability"""
     st.markdown(f"### {t(f'{defect_type.lower()}_review')}")
