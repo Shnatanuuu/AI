@@ -2554,7 +2554,7 @@ def render_photos_of_faults_ui():
                                     st.image(
                                         container['images'][0],
                                         caption=f"Defect: {container['name']}",
-                                        use_container_width=True
+                                        width=200
                                     )
                                 except Exception as e:
                                     st.error(f"Error displaying image: {str(e)}")
@@ -2732,7 +2732,7 @@ def create_annotation_interface(image, image_bytes):
         # Use a container to prevent re-rendering the entire image
         preview_container = st.container()
         with preview_container:
-            st.image(annotated_image, caption="Annotated defect", use_container_width=True)
+            st.image(annotated_image, caption="Annotated defect", width=400)
     
     with col_controls:
         st.markdown("**Position Controls:**")
