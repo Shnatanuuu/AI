@@ -28,38 +28,21 @@ from PIL import Image, ImageDraw
 
 load_dotenv()
 # Add this at the VERY END of your script, before the last line
-st.markdown("""
-<script>
-// JavaScript to improve slider responsiveness
-document.addEventListener('DOMContentLoaded', function() {
-    // Add smooth transitions to image updates
-    const style = document.createElement('style');
-    style.textContent = `
-        .stImage img {
-            transition: opacity 0.1s ease-in-out;
-        }
-        .slider-updating {
-            opacity: 0.8;
-        }
-    `;
-    document.head.appendChild(style);
-    
-    // Listen for slider changes
-    document.addEventListener('input', function(e) {
-        if (e.target.type === 'range') {
-            // Add a class to indicate updating
-            const image = e.target.closest('.element-container')?.nextElementSibling?.querySelector('img');
-            if (image) {
-                image.classList.add('slider-updating');
-                setTimeout(() => {
-                    image.classList.remove('slider-updating');
-                }, 100);
-            }
-        }
-    });
-});
-</script>
-""", unsafe_allow_html=True)
+# Add this message handler at the TOP LEVEL (not inside any function)
+# Add this to handle messages from the arrow annotation component
+
+
+
+# Add handler for receiving annotated image
+if 'component_value' not in st.session_state:
+    st.session_state.component_value = None
+
+# Check for messages from the component
+if st.session_state.component_value:
+    # Store the annotated image data
+    st.session_state.annotated_image_data = st.session_state.component_value
+    st.session_state.component_value = None
+    st.rerun()
 
 st.set_page_config(
     page_title="AI Shoe QC Inspector",
@@ -483,12 +466,10 @@ if 'qc_defect_containers' not in st.session_state:
     st.session_state.qc_defect_containers = []  # List of dictionaries for each defect container
 
 # Circle annotation storage
-if 'annotator_image' not in st.session_state:
-    st.session_state.annotator_image = None
+
 if 'component_value' not in st.session_state:
     st.session_state.component_value = None
-if 'annotated_images_received' not in st.session_state:
-    st.session_state.annotated_images_received = []
+
 # Photos of Faults storage
 if 'qc_defect_containers' not in st.session_state:
     st.session_state.qc_defect_containers = []  # List of dictionaries for each defect container
@@ -965,7 +946,491 @@ def calculate_total_sampling(order_qty):
             return "315"
     except:
         return ""
+    
+# Add this function to create the arrow annotation component
+def create_arrow_annotation_component():
+    """Create simplified arrow annotation component with Download PNG only"""
+    html_code = '''
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Arrow Annotation Tool</title>
+        <style>
+            body {
+                margin: 0;
+                padding: 15px;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                background: white;
+            }
+            
+            .container {
+                max-width: 700px;
+                margin: 0 auto;
+                background: white;
+                border-radius: 10px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                overflow: hidden;
+            }
+            
+            .header {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 15px;
+                text-align: center;
+            }
+            
+            .header h2 {
+                margin: 0 0 5px 0;
+                font-size: 1.3rem;
+            }
+            
+            .header p {
+                margin: 0;
+                opacity: 0.9;
+                font-size: 0.8rem;
+            }
+            
+            .content {
+                padding: 15px;
+            }
+            
+            .upload-section {
+                text-align: center;
+                padding: 30px 15px;
+                border: 2px dashed #667eea;
+                border-radius: 6px;
+                margin-bottom: 15px;
+                background: #f8f9ff;
+            }
+            
+            .upload-btn {
+                background: #667eea;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 5px;
+                font-size: 0.9rem;
+                cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                font-weight: 600;
+                transition: background 0.3s;
+            }
+            
+            .upload-btn:hover {
+                background: #5a67d8;
+            }
+            
+            .canvas-container {
+                display: flex;
+                justify-content: center;
+                margin: 15px 0;
+                padding: 8px;
+                background: #f5f5f5;
+                border-radius: 6px;
+            }
+            
+            canvas {
+                border: 2px solid #ddd;
+                border-radius: 6px;
+                background: white;
+                cursor: crosshair;
+                max-width: 100%;
+                height: auto;
+            }
+            
+            .download-btn {
+                width: 100%;
+                background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                color: white;
+                border: none;
+                padding: 12px;
+                border-radius: 6px;
+                font-size: 1rem;
+                font-weight: 600;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                margin-top: 15px;
+                transition: all 0.2s;
+            }
+            
+            .download-btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            }
+            
+            .download-btn:disabled {
+                background: #9ca3af;
+                cursor: not-allowed;
+                transform: none;
+                box-shadow: none;
+            }
+            
+            .info-box {
+                background: #dbeafe;
+                padding: 12px;
+                border-radius: 6px;
+                margin-bottom: 15px;
+                border-left: 3px solid #3b82f6;
+                font-size: 0.85rem;
+            }
+            
+            .info-box p {
+                margin: 3px 0;
+                color: #374151;
+            }
+            
+            input[type="file"] {
+                display: none;
+            }
+            
+            .instructions {
+                background: #fffbeb;
+                padding: 12px;
+                border-radius: 6px;
+                margin-bottom: 15px;
+                border-left: 3px solid #f59e0b;
+                font-size: 0.85rem;
+            }
+            
+            .instructions ol {
+                margin: 8px 0 0 0;
+                padding-left: 20px;
+            }
+            
+            .instructions li {
+                margin: 3px 0;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h2>🎯 Arrow Annotation Tool</h2>
+                <p>Drag green/blue dots to position QC arrow</p>
+            </div>
+            
+            <div class="content">
+                <div class="instructions">
+                    <strong>Instructions:</strong>
+                    <ol>
+                        <li>Upload your defect image</li>
+                        <li>Drag the <strong>green dot</strong> (tail) and <strong>blue dot</strong> (head) to position arrow</li>
+                        <li>Click <strong>Download PNG</strong> to save annotated image</li>
+                    </ol>
+                </div>
+                
+                <div id="uploadSection" class="upload-section">
+                    <input type="file" id="imageInput" accept="image/*">
+                    <button class="upload-btn" onclick="document.getElementById('imageInput').click()">
+                        📤 Upload Image
+                    </button>
+                    <p style="margin-top: 8px; color: #6b7280; font-size: 0.8rem;">Support: PNG, JPG, JPEG</p>
+                </div>
+                
+                <div id="annotationSection" style="display: none;">
+                    <div class="info-box">
+                        <p>🟢 <strong>Green dot:</strong> Arrow tail (drag to move)</p>
+                        <p>🔵 <strong>Blue dot:</strong> Arrow head (drag to move)</p>
+                        <p>📏 <strong>Arrow length:</strong> <span id="arrowLength">0</span>px</p>
+                    </div>
+                    
+                    <div class="canvas-container">
+                        <canvas id="annotationCanvas" width="600" height="400"></canvas>
+                    </div>
+                    
+                    <button id="downloadBtn" class="download-btn" onclick="downloadPNG()" disabled>
+                        ⬇️ Download PNG
+                    </button>
+                </div>
+            </div>
+        </div>
 
+        <script>
+            let image = null;
+            let canvas = null;
+            let ctx = null;
+            let arrow = {
+                startX: 0.2,
+                startY: 0.2,
+                endX: 0.5,
+                endY: 0.5,
+                headSize: 20
+            };
+            let dragging = null;
+            let dragOffset = { x: 0, y: 0 };
+            let originalWidth = 0;
+            let originalHeight = 0;
+            let displayWidth = 0;
+            let displayHeight = 0;
+            let scale = 1;
+
+            // Initialize when page loads
+            document.addEventListener('DOMContentLoaded', function() {
+                canvas = document.getElementById('annotationCanvas');
+                ctx = canvas.getContext('2d');
+                
+                // Setup file input listener
+                document.getElementById('imageInput').addEventListener('change', handleImageUpload);
+                
+                // Setup canvas event listeners
+                canvas.addEventListener('mousedown', handleMouseDown);
+                canvas.addEventListener('mousemove', handleMouseMove);
+                canvas.addEventListener('mouseup', handleMouseUp);
+                canvas.addEventListener('mouseleave', handleMouseUp);
+                
+                // Notify Streamlit that component is ready
+                window.parent.postMessage({
+                    type: 'streamlit:setComponentValue',
+                    value: 'annotation-tool-ready'
+                }, '*');
+            });
+
+            function handleImageUpload(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        image = new Image();
+                        image.onload = function() {
+                            originalWidth = image.width;
+                            originalHeight = image.height;
+                            
+                            // Calculate display size
+                            const maxWidth = 600;
+                            const maxHeight = 400;
+                            scale = Math.min(maxWidth / originalWidth, maxHeight / originalHeight);
+                            displayWidth = originalWidth * scale;
+                            displayHeight = originalHeight * scale;
+                            
+                            // Set canvas size
+                            canvas.width = displayWidth;
+                            canvas.height = displayHeight;
+                            
+                            // Reset arrow to center
+                            arrow = {
+                                startX: 0.2,
+                                startY: 0.2,
+                                endX: 0.5,
+                                endY: 0.5,
+                                headSize: 20 * scale
+                            };
+                            
+                            // Show annotation section
+                            document.getElementById('uploadSection').style.display = 'none';
+                            document.getElementById('annotationSection').style.display = 'block';
+                            
+                            // Enable download button
+                            document.getElementById('downloadBtn').disabled = false;
+                            
+                            // Draw initial image and arrow
+                            drawCanvas();
+                            updateArrowLength();
+                        };
+                        image.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+
+            function drawCanvas() {
+                if (!image || !canvas) return;
+                
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw image
+                ctx.drawImage(image, 0, 0, displayWidth, displayHeight);
+                
+                // Calculate display positions
+                const startX = arrow.startX * displayWidth;
+                const startY = arrow.startY * displayHeight;
+                const endX = arrow.endX * displayWidth;
+                const endY = arrow.endY * displayHeight;
+                
+                // Draw arrow line
+                ctx.beginPath();
+                ctx.moveTo(startX, startY);
+                ctx.lineTo(endX, endY);
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+
+                // Draw arrowhead
+                const angle = Math.atan2(endY - startY, endX - startX);
+                ctx.save();
+                ctx.translate(endX, endY);
+                ctx.rotate(angle);
+                
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(-arrow.headSize, -arrow.headSize/2);
+                ctx.lineTo(-arrow.headSize, arrow.headSize/2);
+                ctx.closePath();
+                
+                ctx.fillStyle = '#ef4444';
+                ctx.fill();
+                ctx.restore();
+
+                // Draw control points
+                ctx.beginPath();
+                ctx.arc(startX, startY, 10, 0, 2 * Math.PI);
+                ctx.fillStyle = '#10b981';
+                ctx.fill();
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(endX, endY, 10, 0, 2 * Math.PI);
+                ctx.fillStyle = '#3b82f6';
+                ctx.fill();
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            function getMousePos(event) {
+                const rect = canvas.getBoundingClientRect();
+                return {
+                    x: (event.clientX - rect.left) * (canvas.width / rect.width),
+                    y: (event.clientY - rect.top) * (canvas.height / rect.height)
+                };
+            }
+
+            function distance(x1, y1, x2, y2) {
+                return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+            }
+
+            function handleMouseDown(event) {
+                if (!image) return;
+                
+                const pos = getMousePos(event);
+                const startX = arrow.startX * displayWidth;
+                const startY = arrow.startY * displayHeight;
+                const endX = arrow.endX * displayWidth;
+                const endY = arrow.endY * displayHeight;
+
+                if (distance(pos.x, pos.y, startX, startY) < 15) {
+                    dragging = 'start';
+                    dragOffset = { x: pos.x - startX, y: pos.y - startY };
+                } else if (distance(pos.x, pos.y, endX, endY) < 15) {
+                    dragging = 'end';
+                    dragOffset = { x: pos.x - endX, y: pos.y - endY };
+                }
+            }
+
+            function handleMouseMove(event) {
+                if (!image || !dragging) return;
+                
+                const pos = getMousePos(event);
+                
+                if (dragging === 'start') {
+                    arrow.startX = Math.max(0.02, Math.min(0.98, (pos.x - dragOffset.x) / displayWidth));
+                    arrow.startY = Math.max(0.02, Math.min(0.98, (pos.y - dragOffset.y) / displayHeight));
+                } else if (dragging === 'end') {
+                    arrow.endX = Math.max(0.02, Math.min(0.98, (pos.x - dragOffset.x) / displayWidth));
+                    arrow.endY = Math.max(0.02, Math.min(0.98, (pos.y - dragOffset.y) / displayHeight));
+                }
+                
+                drawCanvas();
+                updateArrowLength();
+            }
+
+            function handleMouseUp() {
+                dragging = null;
+            }
+
+            function updateArrowLength() {
+                if (!image) return;
+                
+                const startX = arrow.startX * originalWidth;
+                const startY = arrow.startY * originalHeight;
+                const endX = arrow.endX * originalWidth;
+                const endY = arrow.endY * originalHeight;
+                
+                const length = Math.round(Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2)));
+                document.getElementById('arrowLength').textContent = length;
+            }
+
+            function downloadPNG() {
+                if (!image) {
+                    alert('Please upload an image first');
+                    return;
+                }
+
+                // Create a canvas at original image resolution
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = originalWidth;
+                tempCanvas.height = originalHeight;
+                const tempCtx = tempCanvas.getContext('2d');
+
+                // Draw original image
+                tempCtx.drawImage(image, 0, 0, originalWidth, originalHeight);
+
+                // Draw arrow at original resolution
+                const startX = arrow.startX * originalWidth;
+                const startY = arrow.startY * originalHeight;
+                const endX = arrow.endX * originalWidth;
+                const endY = arrow.endY * originalHeight;
+                const headSize = arrow.headSize / scale * 1.5;
+
+                // Draw arrow line
+                tempCtx.beginPath();
+                tempCtx.moveTo(startX, startY);
+                tempCtx.lineTo(endX, endY);
+                tempCtx.strokeStyle = '#ef4444';
+                tempCtx.lineWidth = 6;
+                tempCtx.lineCap = 'round';
+                tempCtx.stroke();
+
+                // Draw arrowhead
+                const angle = Math.atan2(endY - startY, endX - startX);
+                tempCtx.save();
+                tempCtx.translate(endX, endY);
+                tempCtx.rotate(angle);
+                
+                tempCtx.beginPath();
+                tempCtx.moveTo(0, 0);
+                tempCtx.lineTo(-headSize, -headSize/2);
+                tempCtx.lineTo(-headSize, headSize/2);
+                tempCtx.closePath();
+                
+                tempCtx.fillStyle = '#ef4444';
+                tempCtx.fill();
+                tempCtx.restore();
+
+                // Convert to PNG data URL
+                const pngDataUrl = tempCanvas.toDataURL('image/png');
+                
+                // Create download link
+                const downloadLink = document.createElement('a');
+                downloadLink.href = pngDataUrl;
+                downloadLink.download = 'annotated-defect.png';
+                
+                // Trigger download
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+                
+                // Also send to Streamlit for automatic container creation
+                window.parent.postMessage({
+                    type: 'streamlit:setComponentValue',
+                    value: pngDataUrl
+                }, '*');
+            }
+        </script>
+    </body>
+    </html>
+    '''
+    
+    return html_code
 def get_sampling_limits(order_qty):
     """Get sampling limits based on order quantity"""
     try:
@@ -2479,16 +2944,18 @@ def create_photos_of_faults_table(language, chinese_font=None):
     
     return elements
 def render_photos_of_faults_ui():
-    """Render Photos of Faults UI with proper arrangement"""
+    """Render Photos of Faults UI with arrow annotation tool"""
     st.markdown(f"### 📷 {t('qc_photos_of_faults')}")
     
-    # Initialize session state
-    if 'qc_defect_containers' not in st.session_state:
-        st.session_state.qc_defect_containers = []
+    # Initialize session state for arrow annotation
+    if 'show_arrow_annotation' not in st.session_state:
+        st.session_state.show_arrow_annotation = False
+    if 'annotated_image_data' not in st.session_state:
+        st.session_state.annotated_image_data = None
     
-    # Display existing containers in a grid
-    if st.session_state.qc_defect_containers:
-        # Group by severity for better organization
+    # Display existing containers
+    if 'qc_defect_containers' in st.session_state and st.session_state.qc_defect_containers:
+        # Group by severity
         containers_by_severity = {
             'critical': [],
             'major': [],
@@ -2580,24 +3047,116 @@ def render_photos_of_faults_ui():
                                             st.rerun()
                                             break
     
-    # "Create New Container" button
+    # Main action buttons
     st.markdown("---")
-    if st.button("**➕ CREATE NEW DEFECT CONTAINER**", type="primary", use_container_width=True):
-        st.session_state.show_add_container_form = True
-        # Clear temp data for new container
-        for key in ['temp_container_name', 'temp_severity', 
-                   'temp_image_bytes', 'temp_image', 'editing_existing_container_idx']:
-            if key in st.session_state:
-                del st.session_state[key]
-        st.rerun()
     
-    # Show add/edit container form
-    if st.session_state.show_add_container_form:
+    # Two column layout for buttons
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Arrow Annotation Tool Button
+        if st.button("🎯 **ANNOTATE WITH ARROW TOOL**", type="primary", use_container_width=True):
+            st.session_state.show_arrow_annotation = True
+            st.session_state.show_add_container_form = False
+            st.session_state.annotated_image_data = None
+            st.rerun()
+    
+    with col2:
+        # Create Container Button (direct)
+        if st.button("📁 **CREATE DIRECT CONTAINER**", type="secondary", use_container_width=True):
+            st.session_state.show_add_container_form = True
+            st.session_state.show_arrow_annotation = False
+            # Clear temp data
+            for key in ['temp_container_name', 'temp_severity', 
+                       'temp_image_bytes', 'temp_image', 'editing_existing_container_idx']:
+                if key in st.session_state:
+                    del st.session_state[key]
+            st.rerun()
+    
+    # Show arrow annotation tool
+    if st.session_state.show_arrow_annotation:
+        st.markdown("---")
+        st.markdown("#### 🎯 Arrow Annotation Tool")
+        st.info("""
+        1. Upload your defect image
+        2. Drag the **green dot** (tail) and **blue dot** (head) to position the arrow
+        3. Click **Save Annotated Image** when done
+        4. The image will be ready for container creation
+        """)
+        
+        # Display the React component
+        components.html(
+            create_arrow_annotation_component(),
+            height=900,
+            scrolling=False
+        )
+        
+        # Display annotated image if available
+        if st.session_state.annotated_image_data:
+            st.markdown("---")
+            st.markdown("#### ✅ Annotated Image Ready")
+            
+            # Decode the base64 image data
+            import base64
+            annotated_bytes = base64.b64decode(st.session_state.annotated_image_data.split(',')[1])
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.image(annotated_bytes, caption="Annotated Image", width=300)
+            
+            with col2:
+                st.success("🎉 Arrow annotation saved!")
+                
+                # Buttons to use this image
+                if st.button("📁 Use this image for new container", type="primary", use_container_width=True):
+                    # Store the annotated image for container creation
+                    st.session_state.temp_image_bytes = annotated_bytes
+                    st.session_state.temp_image = Image.open(io.BytesIO(annotated_bytes))
+                    st.session_state.show_add_container_form = True
+                    st.session_state.show_arrow_annotation = False
+                    st.rerun()
+                
+                if st.button("🔄 Annotate another image", type="secondary", use_container_width=True):
+                    st.session_state.annotated_image_data = None
+                    st.rerun()
+        
+        # Cancel button
+        if st.button("❌ Cancel Annotation", type="secondary", use_container_width=True, key="cancel_annotation"):
+            st.session_state.show_arrow_annotation = False
+            st.session_state.annotated_image_data = None
+            st.rerun()
+    
+    # Show add/edit container form (SIMPLIFIED - No sliders)
+    elif st.session_state.show_add_container_form:
         edit_idx = st.session_state.get('editing_existing_container_idx')
         is_editing = edit_idx is not None and isinstance(edit_idx, int)
         
         st.markdown("---")
-        st.markdown(f"#### {'✏️ EDIT EXISTING CONTAINER' if is_editing else '📁 CREATE NEW CONTAINER'}")
+        st.markdown(f"#### {'✏️ EDIT CONTAINER' if is_editing else '📁 CREATE CONTAINER'}")
+        
+        # Check if we have an annotated image ready
+        has_annotated_image = 'temp_image_bytes' in st.session_state and st.session_state.temp_image_bytes is not None
+        
+        if has_annotated_image:
+            st.success("✅ Using annotated image from arrow tool")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.image(st.session_state.temp_image_bytes, caption="Annotated image", width=200)
+        else:
+            # Regular image upload
+            uploaded_file = st.file_uploader(
+                "📷 Upload Defect Image",
+                type=['png', 'jpg', 'jpeg'],
+                key="new_container_uploader"
+            )
+            
+            if uploaded_file is not None:
+                image_bytes = uploaded_file.getvalue()
+                image = Image.open(io.BytesIO(image_bytes))
+                
+                # Store in session state
+                st.session_state.temp_image_bytes = image_bytes
+                st.session_state.temp_image = image
         
         # Container name and severity
         col1, col2 = st.columns([3, 2])
@@ -2629,254 +3188,78 @@ def render_photos_of_faults_ui():
                 key="new_container_severity_select"
             )
         
-        # Image uploader
-        uploaded_file = st.file_uploader(
-            "📷 Upload Defect Image",
-            type=['png', 'jpg', 'jpeg'],
-            key="new_container_uploader",
-            help="Upload an image to annotate with a red circle"
-        )
-        
-        # Store the uploaded data
-        if uploaded_file is not None:
-            image_bytes = uploaded_file.getvalue()
-            image = Image.open(io.BytesIO(image_bytes))
-            
-            # Store in session state
-            st.session_state.temp_container_name = new_container_name.strip() if new_container_name else ""
-            st.session_state.temp_severity = new_container_severity
-            st.session_state.temp_image_bytes = image_bytes
-            st.session_state.temp_image = image
-        
-        # Check if we have everything needed for annotation
+        # Check if we have everything needed
         has_name = new_container_name and new_container_name.strip()
-        has_image = uploaded_file is not None
+        has_image = 'temp_image_bytes' in st.session_state and st.session_state.temp_image_bytes is not None
         
-        if has_name and has_image:
-            st.markdown("---")
-            st.markdown("#### 🎯 Annotate Your Image")
-            st.info("💡 Draw a red circle around the defect, then click **SAVE CONTAINER**")
-            
-            # Show the annotation interface
-            create_annotation_interface(image, image_bytes)
-            
-            # Cancel button
-            if st.button("❌ Cancel", use_container_width=True, key="cancel_form_btn"):
-                st.session_state.show_add_container_form = False
-                for key in ['temp_container_name', 'temp_severity',
-                           'temp_image_bytes', 'temp_image', 'editing_existing_container_idx']:
+        # Action buttons
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("💾 Save Container", type="primary", use_container_width=True, 
+                        disabled=not (has_name and has_image)):
+                if has_name and has_image:
+                    # Create container
+                    container = {
+                        'name': new_container_name.strip(),
+                        'severity': new_container_severity,
+                        'images': [st.session_state.temp_image_bytes],
+                        'timestamp': datetime.now().isoformat(),
+                        'has_annotation': has_annotated_image  # Flag if from arrow tool
+                    }
+                    
+                    # Check if editing or adding new
+                    if is_editing:
+                        idx = st.session_state.editing_existing_container_idx
+                        if isinstance(idx, int) and 0 <= idx < len(st.session_state.qc_defect_containers):
+                            st.session_state.qc_defect_containers[idx] = container
+                            st.success(f"✅ Updated: {new_container_name.strip()}")
+                        else:
+                            st.session_state.qc_defect_containers.append(container)
+                            st.success(f"✅ Saved: {new_container_name.strip()}")
+                    else:
+                        st.session_state.qc_defect_containers.append(container)
+                        st.success(f"✅ Saved: {new_container_name.strip()}")
+                    
+                    # Clean up
+                    keys_to_remove = [
+                        'temp_container_name', 'temp_severity',
+                        'temp_image_bytes', 'temp_image', 'editing_existing_container_idx',
+                        'show_add_container_form', 'annotated_image_data'
+                    ]
+                    
+                    for key in keys_to_remove:
+                        if key in st.session_state:
+                            del st.session_state[key]
+                    
+                    # Return to main view
+                    st.rerun()
+                else:
+                    st.warning("Please provide both container name and image")
+        
+        with col2:
+            if st.button("❌ Cancel", type="secondary", use_container_width=True):
+                # Clean up
+                keys_to_remove = [
+                    'temp_container_name', 'temp_severity',
+                    'temp_image_bytes', 'temp_image', 'editing_existing_container_idx',
+                    'show_add_container_form', 'annotated_image_data'
+                ]
+                
+                for key in keys_to_remove:
                     if key in st.session_state:
                         del st.session_state[key]
+                
                 st.rerun()
         
-        elif uploaded_file is not None and not has_name:
-            st.warning("⚠️ Please enter a container name before annotating")
-        elif not uploaded_file:
-            st.info("📁 Please upload an image to start annotation")
+        if not has_image and not has_annotated_image:
+            st.info("📁 Please upload an image to create container")
 
-import time
 
-def create_annotation_interface(image, image_bytes):
-    """Create annotation interface with immediate slider response - FIXED LAG ISSUE"""
-    img_width, img_height = image.size
-    
-    # Generate a unique ID for this annotation session
-    image_hash = hashlib.md5(image_bytes).hexdigest()[:8]
-    annotation_key = f"annotation_{image_hash}"
-    
-    # Initialize session state for this specific image
-    if annotation_key not in st.session_state:
-        st.session_state[annotation_key] = {
-            'x': 50,
-            'y': 50,
-            'radius': 10,
-            'last_update': time.time()
-        }
-    
-    # Get current values
-    current_state = st.session_state[annotation_key]
-    x_pos = current_state['x']
-    y_pos = current_state['y']
-    radius_val = current_state['radius']
-    
-    # Create annotated image with current values
-    center_x = int(img_width * x_pos / 100)
-    center_y = int(img_height * y_pos / 100)
-    actual_radius = int(min(img_width, img_height) * radius_val / 100)
-    
-    annotated_image = image.copy()
-    draw = ImageDraw.Draw(annotated_image)
-    
-    # Draw circle
-    draw.ellipse(
-        [center_x - actual_radius, center_y - actual_radius,
-         center_x + actual_radius, center_y + actual_radius],
-        outline='red',
-        width=5
-    )
-    
-    # Draw center dot
-    draw.ellipse(
-        [center_x - 8, center_y - 8, center_x + 8, center_y + 8],
-        fill='red',
-        outline='white',
-        width=2
-    )
-    
-    # Create columns for layout
-    col_image, col_controls = st.columns([2, 1])
-    
-    with col_image:
-        st.markdown("**Live Preview:**")
-        
-        # Use a container to prevent re-rendering the entire image
-        preview_container = st.container()
-        with preview_container:
-            st.image(annotated_image, caption="Annotated defect", width=400)
-    
-    with col_controls:
-        st.markdown("**Position Controls:**")
-        st.info("🎯 Adjust sliders - changes update instantly")
-        
-        # Create sliders with on_change callback
-        x_slider_key = f"{annotation_key}_x_slider"
-        y_slider_key = f"{annotation_key}_y_slider"
-        radius_slider_key = f"{annotation_key}_radius_slider"
-        
-        # Define callback functions
-        def update_x_position():
-            current_state = st.session_state[annotation_key]
-            current_state['x'] = st.session_state[x_slider_key]
-            current_state['last_update'] = time.time()
-        
-        def update_y_position():
-            current_state = st.session_state[annotation_key]
-            current_state['y'] = st.session_state[y_slider_key]
-            current_state['last_update'] = time.time()
-        
-        def update_radius():
-            current_state = st.session_state[annotation_key]
-            current_state['radius'] = st.session_state[radius_slider_key]
-            current_state['last_update'] = time.time()
-        
-        # X Position slider
-        new_x = st.slider(
-            "← Left / Right →",
-            min_value=0,
-            max_value=100,
-            value=x_pos,
-            step=1,
-            key=x_slider_key,
-            help="Move circle horizontally",
-            on_change=update_x_position
-        )
-        
-        # Y Position slider
-        new_y = st.slider(
-            "↑ Up / Down ↓",
-            min_value=0,
-            max_value=100,
-            value=y_pos,
-            step=1,
-            key=y_slider_key,
-            help="Move circle vertically",
-            on_change=update_y_position
-        )
-        
-        # Radius slider
-        new_radius = st.slider(
-            "⭕ Circle Size",
-            min_value=5,
-            max_value=30,
-            value=radius_val,
-            step=1,
-            key=radius_slider_key,
-            help="Adjust circle size",
-            on_change=update_radius
-        )
-        
-        # Display current values
-        st.markdown("---")
-        st.markdown(f"**Current Position:**")
-        st.markdown(f"X: `{new_x}%` | Y: `{new_y}%` | Radius: `{new_radius}%`")
-        
-        # Save button
-        st.markdown("---")
-        save_btn_key = f"{annotation_key}_save_btn"
-        if st.button("💾 **SAVE ANNOTATED IMAGE**", type="primary", use_container_width=True, key=save_btn_key):
-            # Save annotated image
-            buffer = io.BytesIO()
-            annotated_image.save(buffer, format='JPEG', quality=95)
-            annotated_bytes = buffer.getvalue()
-            
-            # Get container info
-            container_name = st.session_state.get('temp_container_name', 'Unnamed')
-            container_severity = st.session_state.get('temp_severity', 'minor')
-            
-            # Create container
-            container = {
-                'name': container_name,
-                'severity': container_severity,
-                'images': [annotated_bytes],
-                'timestamp': datetime.now().isoformat(),
-                'has_annotation': True
-            }
-            
-            # Check if editing or adding new
-            if 'editing_existing_container_idx' in st.session_state:
-                idx = st.session_state.editing_existing_container_idx
-                if isinstance(idx, int) and 0 <= idx < len(st.session_state.qc_defect_containers):
-                    st.session_state.qc_defect_containers[idx] = container
-                    st.success(f"✅ Updated: {container_name}")
-                else:
-                    st.session_state.qc_defect_containers.append(container)
-                    st.success(f"✅ Saved: {container_name}")
-            else:
-                st.session_state.qc_defect_containers.append(container)
-                st.success(f"✅ Saved: {container_name}")
-            
-            # Clean up
-            keys_to_remove = [
-                'temp_container_name', 'temp_severity',
-                'temp_image_bytes', 'temp_image', 'editing_existing_container_idx'
-            ]
-            
-            for key in keys_to_remove:
-                if key in st.session_state:
-                    del st.session_state[key]
-            
-            # Remove annotation state
-            if annotation_key in st.session_state:
-                del st.session_state[annotation_key]
-            
-            # Force immediate rerun
-            st.rerun()
-        
-        # Cancel button
-        if st.button("❌ Cancel Annotation", use_container_width=True, key=f"{annotation_key}_cancel"):
-            # Clean up
-            if annotation_key in st.session_state:
-                del st.session_state[annotation_key]
-            
-            keys_to_remove = [
-                'temp_container_name', 'temp_severity',
-                'temp_image_bytes', 'temp_image', 'editing_existing_container_idx'
-            ]
-            
-            for key in keys_to_remove:
-                if key in st.session_state:
-                    del st.session_state[key]
-            
-            st.session_state.show_add_container_form = False
-            st.rerun()
 def generate_multilingual_pdf(order_info, language):
     """Generate PDF with proper Mandarin font handling - UPDATED TO REMOVE SIGNATURES"""
     try:
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, 
-                               topMargin=2*cm, bottomMargin=2*cm)
-        elements = []
-        styles = getSampleStyleSheet()
         
         # Register Chinese font if available
         chinese_font = None
@@ -2910,13 +3293,59 @@ def generate_multilingual_pdf(order_info, language):
             base_font = 'Helvetica'
             bold_font = 'Helvetica-Bold'
         
-        brand_blue = colors.Color(0.4, 0.49, 0.91)
+        # Define different header/footer functions for first page and later pages
+        def add_first_page_header_footer(canvas, doc):
+            """Add header and footer only to first page - Just page number"""
+            canvas.saveState()
+            
+            # PAGE NUMBER: At top right corner (Page 1 only gets page number)
+            page_num_font_size = 10
+            canvas.setFont(base_font, page_num_font_size)
+            
+            # Draw page number at top right
+            page_text = f"Page {doc.page}"
+            canvas.drawRightString(A4[0] - 2*cm, A4[1] - 1*cm, page_text)
+            
+            canvas.restoreState()
+        
+        def add_later_pages_header_footer(canvas, doc):
+            """Add header and footer to pages 2 onwards - Header + Page number"""
+            canvas.saveState()
+            
+            # HEADER: GRAND STEP (H.K.) LTD on pages 2 onwards
+            header_font_size = 12
+            canvas.setFont(bold_font, header_font_size)
+            canvas.setFillColor(colors.black)
+            
+            # Draw header at top center (NO UNDERLINE)
+            header_text = "GRAND STEP (H.K.) LTD"
+            canvas.drawCentredString(A4[0]/2, A4[1] - 1*cm, header_text)
+            
+            # PAGE NUMBER: At top right corner
+            page_num_font_size = 10
+            canvas.setFont(base_font, page_num_font_size)
+            
+            # Draw page number at top right
+            page_text = f"Page {doc.page}"
+            canvas.drawRightString(A4[0] - 2*cm, A4[1] - 1*cm, page_text)
+            
+            canvas.restoreState()
+        
+        # Create document with different margins for first page
+        doc = SimpleDocTemplate(buffer, pagesize=A4, 
+                               rightMargin=2*cm, leftMargin=2*cm, 
+                               topMargin=2*cm, bottomMargin=2*cm)  # Normal top margin for page 1
+        
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        brand_blue = colors.Color(0.4, 0.49, 0.91)  # Original purple color
         success_green = colors.Color(0.31, 0.78, 0.47)
         warning_orange = colors.Color(1.0, 0.6, 0.0)
         danger_red = colors.Color(1.0, 0.42, 0.42)
         light_gray = colors.Color(0.97, 0.97, 0.97)
         
-        # Styles
+        # Restore original styles
         title_style = ParagraphStyle('Title', parent=styles['Normal'], fontSize=22, alignment=TA_CENTER,
                                      textColor=brand_blue, fontName=bold_font, spaceAfter=12)
         subtitle_style = ParagraphStyle('Subtitle', parent=styles['Normal'], fontSize=12, alignment=TA_CENTER,
@@ -2924,7 +3353,7 @@ def generate_multilingual_pdf(order_info, language):
         section_style = ParagraphStyle('Section', parent=styles['Heading2'], fontSize=14, spaceAfter=10,
                                       spaceBefore=15, textColor=brand_blue, fontName=bold_font, alignment=TA_CENTER)
         
-        # Header
+        # HEADER FOR PAGE 1 - Original purple GRAND STEP (H.K.) LTD
         if language == "Mandarin":
             elements.append(Paragraph("GRAND STEP (H.K.) LTD", title_style))
             elements.append(Spacer(1, 12))
@@ -3287,8 +3716,8 @@ def generate_multilingual_pdf(order_info, language):
         
         # SIGNATURES SECTION REMOVED AS REQUESTED
         
-        # Build the PDF
-        doc.build(elements)
+        # Build the PDF with DIFFERENT header/footer for first page vs later pages
+        doc.build(elements, onFirstPage=add_first_page_header_footer, onLaterPages=add_later_pages_header_footer)
         return buffer.getvalue()
         
     except Exception as e:
