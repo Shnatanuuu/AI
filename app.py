@@ -4338,46 +4338,5 @@ if 'analyses_done' in st.session_state and st.session_state.analyses_done:
         else:
             st.error(f"❌ {t('pdf_failed')}")
 # Add at the very end, before the last line
-st.markdown("---")
-st.markdown("### 🔍 Debug Information")
 
-with st.expander("Show Debug Info"):
-    st.write("**QC Defect Containers:**")
-    st.write(f"Total containers: {len(st.session_state.get('qc_defect_containers', []))}")
-    
-    if st.session_state.get('qc_defect_containers'):
-        for idx, container in enumerate(st.session_state.qc_defect_containers):
-            st.write(f"{idx + 1}. {container['name']} ({container['severity']}) - {len(container.get('images', []))} images")
-    
-    st.write("**Session State Keys:**")
-    st.write([k for k in st.session_state.keys() if 'container' in k.lower() or 'temp' in k.lower()])
-    
-    if st.button("🗑️ Clear All Containers (Debug)", key="debug_clear"):
-        st.session_state.qc_defect_containers = []
-        st.success("Cleared!")
-        st.rerun()
-# Debug section at the very end
-st.markdown("---")
-st.markdown("### 🔍 Photos of Faults Debug Info")
 
-with st.expander("Show Debug Info"):
-    st.write("**QC Defect Containers Status:**")
-    st.write(f"Total containers in session state: {len(st.session_state.get('qc_defect_containers', []))}")
-    
-    if st.session_state.get('qc_defect_containers'):
-        for idx, container in enumerate(st.session_state.qc_defect_containers):
-            st.write(f"{idx + 1}. {container['name']} ({container['severity']})")
-            st.write(f"   Has images: {len(container.get('images', [])) > 0}")
-            if container.get('images'):
-                try:
-                    st.image(container['images'][0], caption=f"Container {idx + 1}: {container['name']}", width=200)
-                except:
-                    st.write("   Error displaying image")
-    
-    # Test PDF generation for Photos of Faults
-    if st.button("Test Photos of Faults in PDF"):
-        test_elements = create_photos_of_faults_table(st.session_state.ui_language)
-        if test_elements:
-            st.success(f"✅ Photos of Faults section would include {len(st.session_state.qc_defect_containers)} containers")
-        else:
-            st.warning("⚠️ No Photos of Faults section would be generated (no containers)")
