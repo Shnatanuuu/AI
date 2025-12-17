@@ -1,4 +1,6 @@
 import streamlit as st
+import geocoder  # For geolocation
+from reportlab.lib.utils import simpleSplit
 import openai
 import base64
 from PIL import Image
@@ -2822,6 +2824,7 @@ def create_photos_of_faults_table(language, chinese_font=None):
         elements.append(header_table)
         elements.append(Spacer(1, 10))
         
+        
         # Process containers in rows (max 2 per row)
         container_count = len(containers_with_images)
         
@@ -2943,6 +2946,46 @@ def create_photos_of_faults_table(language, chinese_font=None):
             elements.append(Spacer(1, 20))
     
     return elements
+def get_current_location():
+    """Get current city based on IP address"""
+    try:
+        g = geocoder.ip('me')
+        if g.city:
+            return f"{g.city}, {g.country}"
+        return "Location unavailable"
+    except Exception as e:
+        return "Location unavailable"
+def add_header_footer(canvas, doc, location_info):
+    """Add header and footer to all pages"""
+    canvas.saveState()
+    
+    # Get current timestamp
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    # Page dimensions
+    page_width = A4[0]
+    page_height = A4[1]
+    
+    # FOOTER: Centered at bottom with timestamp and location
+    footer_text = f"Generated: {timestamp} | Location: {location_info}"
+    footer_font_size = 8
+    
+    canvas.setFont('Helvetica', footer_font_size)
+    canvas.setFillColor(colors.grey)
+    
+    # Draw footer text centered at bottom
+    text_width = canvas.stringWidth(footer_text, 'Helvetica', footer_font_size)
+    footer_x = (page_width - text_width) / 2
+    footer_y = 1*cm  # 1cm from bottom
+    
+    canvas.drawString(footer_x, footer_y, footer_text)
+    
+    # PAGE NUMBER: Top right corner
+    page_text = f"Page {doc.page}"
+    canvas.setFont('Helvetica', 10)
+    canvas.drawRightString(page_width - 2*cm, page_height - 1*cm, page_text)
+    
+    canvas.restoreState()
 def render_photos_of_faults_ui():
     """Render Photos of Faults UI with arrow annotation tool"""
     st.markdown(f"### 📷 {t('qc_photos_of_faults')}")
@@ -3257,7 +3300,7 @@ def render_photos_of_faults_ui():
 
 
 def generate_multilingual_pdf(order_info, language):
-    """Generate PDF with proper Mandarin font handling - UPDATED TO REMOVE SIGNATURES"""
+    """Generate PDF with proper Mandarin font handling - UPDATED WITH TIMESTAMP & LOCATION FOOTER"""
     try:
         buffer = io.BytesIO()
         
@@ -3293,48 +3336,98 @@ def generate_multilingual_pdf(order_info, language):
             base_font = 'Helvetica'
             bold_font = 'Helvetica-Bold'
         
-        # Define different header/footer functions for first page and later pages
-        def add_first_page_header_footer(canvas, doc):
-            """Add header and footer only to first page - Just page number"""
+        # Define header/footer function with timestamp and location
+        def add_header_footer(canvas, doc):
+            """Add header and footer to all pages with timestamp and location"""
             canvas.saveState()
             
-            # PAGE NUMBER: At top right corner (Page 1 only gets page number)
-            page_num_font_size = 10
-            canvas.setFont(base_font, page_num_font_size)
+            # Get current timestamp
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
-            # Draw page number at top right
+            # SIMPLE LOCATION HANDLING - Major cities only
+            # Default location
+            location = "Unknown Location"
+            
+            try:
+                import requests
+                response = requests.get('https://ipinfo.io/json', timeout=2)
+                if response.status_code == 200:
+                    data = response.json()
+                    country_code = data.get('country', '')
+                    city = data.get('city', '').strip().lower()
+                    
+                    # Map country code to primary city
+                    primary_cities = {
+                        'IN': 'Mumbai',        # India - default to Mumbai
+                        'US': 'New York',      # USA - default to New York
+                        'GB': 'London',        # UK - default to London
+                        'CN': 'Guangdong',     # China - default to Guangdong
+                        'JP': 'Tokyo',         # Japan - default to Tokyo
+                        'SG': 'Singapore',     # Singapore
+                        'AU': 'Sydney',        # Australia - default to Sydney
+                        'CA': 'Toronto',       # Canada - default to Toronto
+                        'DE': 'Berlin',        # Germany - default to Berlin
+                        'FR': 'Paris',         # France - default to Paris
+                    }
+                    
+                    # If we have a known country code, use its primary city
+                    if country_code in primary_cities:
+                        location = primary_cities[country_code]
+                    else:
+                        # Try to get city name, but keep it simple
+                        if city:
+                            # Capitalize first letter of each word
+                            location = ' '.join(word.capitalize() for word in city.split())
+                        else:
+                            location = "Unknown Location"
+                            
+            except:
+                # If API fails, use default based on language
+                if language == "Mandarin":
+                    location = "广东"  # Guangdong in Chinese
+                else:
+                    location = "Mumbai"
+            
+            # Page dimensions
+            page_width = A4[0]
+            page_height = A4[1]
+            
+            # FOOTER: Centered at bottom with timestamp and location
+            footer_text = f"Generated: {timestamp} | Location: {location}"
+            footer_font_size = 8
+            
+            canvas.setFont(base_font, footer_font_size)
+            canvas.setFillColor(colors.grey)
+            
+            # Draw footer text centered at bottom
+            text_width = canvas.stringWidth(footer_text, base_font, footer_font_size)
+            footer_x = (page_width - text_width) / 2
+            footer_y = 1*cm  # 1cm from bottom
+            
+            canvas.drawString(footer_x, footer_y, footer_text)
+            
+            # HEADER: GRAND STEP (H.K.) LTD on all pages except first
+            if doc.page > 1:
+                header_font_size = 12
+                canvas.setFont(bold_font, header_font_size)
+                canvas.setFillColor(colors.black)
+                
+                # Draw header at top center (NO UNDERLINE)
+                header_text = "GRAND STEP (H.K.) LTD"
+                canvas.drawCentredString(page_width/2, page_height - 1*cm, header_text)
+            
+            # PAGE NUMBER: Top right corner
             page_text = f"Page {doc.page}"
-            canvas.drawRightString(A4[0] - 2*cm, A4[1] - 1*cm, page_text)
+            canvas.setFont(base_font, 10)
+            canvas.drawRightString(page_width - 2*cm, page_height - 1*cm, page_text)
             
             canvas.restoreState()
         
-        def add_later_pages_header_footer(canvas, doc):
-            """Add header and footer to pages 2 onwards - Header + Page number"""
-            canvas.saveState()
-            
-            # HEADER: GRAND STEP (H.K.) LTD on pages 2 onwards
-            header_font_size = 12
-            canvas.setFont(bold_font, header_font_size)
-            canvas.setFillColor(colors.black)
-            
-            # Draw header at top center (NO UNDERLINE)
-            header_text = "GRAND STEP (H.K.) LTD"
-            canvas.drawCentredString(A4[0]/2, A4[1] - 1*cm, header_text)
-            
-            # PAGE NUMBER: At top right corner
-            page_num_font_size = 10
-            canvas.setFont(base_font, page_num_font_size)
-            
-            # Draw page number at top right
-            page_text = f"Page {doc.page}"
-            canvas.drawRightString(A4[0] - 2*cm, A4[1] - 1*cm, page_text)
-            
-            canvas.restoreState()
-        
-        # Create document with different margins for first page
+        # [Rest of the function remains exactly the same...]
+        # Create document with increased bottom margin for footer
         doc = SimpleDocTemplate(buffer, pagesize=A4, 
                                rightMargin=2*cm, leftMargin=2*cm, 
-                               topMargin=2*cm, bottomMargin=2*cm)  # Normal top margin for page 1
+                               topMargin=2*cm, bottomMargin=2.5*cm)  # Increased bottom margin for footer
         
         elements = []
         styles = getSampleStyleSheet()
@@ -3689,8 +3782,6 @@ def generate_multilingual_pdf(order_info, language):
             elements.append(PageBreak())
             elements.extend(photos_elements)
         
-       
-        
         # QC NOTES - Start new page if needed
         if st.session_state.qc_notes_english and st.session_state.qc_notes_english.strip():
             elements.append(PageBreak())
@@ -3714,10 +3805,8 @@ def generate_multilingual_pdf(order_info, language):
             elements.append(Paragraph(notes_text, notes_body_style))
             elements.append(Spacer(1, 15))
         
-        # SIGNATURES SECTION REMOVED AS REQUESTED
-        
-        # Build the PDF with DIFFERENT header/footer for first page vs later pages
-        doc.build(elements, onFirstPage=add_first_page_header_footer, onLaterPages=add_later_pages_header_footer)
+        # Build the PDF with unified header/footer on all pages
+        doc.build(elements, onFirstPage=add_header_footer, onLaterPages=add_header_footer)
         return buffer.getvalue()
         
     except Exception as e:
@@ -3725,6 +3814,49 @@ def generate_multilingual_pdf(order_info, language):
         import traceback
         st.error(traceback.format_exc())
         return None
+def get_browser_location():
+    """Get location via browser geolocation API"""
+    html_code = '''
+    <script>
+    function getLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(showPosition, showError);
+        } else {
+            window.parent.postMessage({type: 'location', data: 'Geolocation not supported'}, '*');
+        }
+    }
+    
+    function showPosition(position) {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        window.parent.postMessage({type: 'location', data: {lat: lat, lon: lon}}, '*');
+    }
+    
+    function showError(error) {
+        window.parent.postMessage({type: 'location', data: 'Location access denied'}, '*');
+    }
+    
+    // Get location when component loads
+    getLocation();
+    </script>
+    '''
+    
+    components.html(html_code, height=0)
+def get_current_location():
+    """Get current city using free IP geolocation API"""
+    try:
+        import requests
+        response = requests.get('http://ip-api.com/json/', timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('status') == 'success':
+                city = data.get('city', '')
+                country = data.get('country', '')
+                if city and country:
+                    return f"{city}, {country}"
+        return "Location unavailable"
+    except Exception as e:
+        return "Location unavailable"
 def render_defect_section_with_audio(defect_type, category_key):
     """Render defect section with audio input option and editing capability"""
     st.markdown(f"### {t(f'{defect_type.lower()}_review')}")
