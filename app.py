@@ -1,5 +1,4 @@
 import streamlit as st
-import pytz
 import geocoder  # For geolocation
 from reportlab.lib.utils import simpleSplit
 import openai
@@ -1622,61 +1621,6 @@ def transcribe_audio(audio_bytes, category):
     except Exception as e:
         st.error(f"❌ Transcription error: {str(e)}")
         return None
-with st.sidebar:
-    # ... existing language preference code ...
-    
-    st.markdown("---")
-    st.markdown("### 🏙️ Report Location (Chinese Cities)")
-    
-    # Chinese cities with proper names in English and Chinese
-    CHINESE_CITIES = {
-        "Guangdong": "广东 (Guangdong) - Main manufacturing hub",
-        "Dongguan": "东莞 (Dongguan) - Shoe manufacturing city",
-        "Shenzhen": "深圳 (Shenzhen) - Tech & manufacturing",
-        "Guangzhou": "广州 (Guangzhou) - Capital of Guangdong",
-        "Shanghai": "上海 (Shanghai) - Financial hub",
-        "Beijing": "北京 (Beijing) - Capital city",
-        "Hong Kong": "香港 (Hong Kong) - Special Administrative Region",
-        "Macau": "澳门 (Macau) - Special Administrative Region",
-        "Hangzhou": "杭州 (Hangzhou) - Zhejiang province",
-        "Ningbo": "宁波 (Ningbo) - Port city",
-        "Wenzhou": "温州 (Wenzhou) - Shoe manufacturing",
-        "Foshan": "佛山 (Foshan) - Guangdong manufacturing",
-        "Zhongshan": "中山 (Zhongshan) - Guangdong city",
-        "Zhuhai": "珠海 (Zhuhai) - Coastal city",
-        "Jiangmen": "江门 (Jiangmen) - Guangdong city",
-        "Huizhou": "惠州 (Huizhou) - Guangdong city",
-        "Shaoxing": "绍兴 (Shaoxing) - Zhejiang city",
-        "Jinhua": "金华 (Jinhua) - Zhejiang city",
-        "Taizhou": "台州 (Taizhou) - Zhejiang city",
-        "Quanzhou": "泉州 (Quanzhou) - Fujian city",
-        "Xiamen": "厦门 (Xiamen) - Fujian coastal city",
-        "Fuzhou": "福州 (Fuzhou) - Capital of Fujian"
-    }
-    
-    # Default selection based on PDF language
-    default_city = "Guangdong"
-    
-    selected_city = st.selectbox(
-        "Select report city:",
-        options=list(CHINESE_CITIES.keys()),
-        format_func=lambda x: CHINESE_CITIES[x],
-        index=list(CHINESE_CITIES.keys()).index(default_city) if default_city in CHINESE_CITIES else 0,
-        key="selected_chinese_city"
-    )
-    
-    # Store in session state
-    st.session_state.selected_city = selected_city
-    
-    # Show preview in both languages
-    city_display = CHINESE_CITIES[selected_city].split(" - ")[0]
-    st.success(f"✅ **Selected:** {city_display}")
-    
-    # Add note about PDF display
-    if pdf_lang == "Mandarin":
-        st.caption("PDF will show Chinese characters (e.g., 广东)")
-    else:
-        st.caption("PDF will show English name (e.g., Guangdong)")
 
 def translate_text_with_openai(text, target_language):
     """Translate text using OpenAI with caching"""
@@ -3011,89 +2955,34 @@ def get_current_location():
         return "Location unavailable"
     except Exception as e:
         return "Location unavailable"
-def add_header_footer(canvas, doc):
-    """Add header and footer to all pages with timestamp and location"""
+def add_header_footer(canvas, doc, location_info):
+    """Add header and footer to all pages"""
     canvas.saveState()
     
-    # Get current timestamp in IST (India Standard Time)
-    try:
-        # Try to get IST time
-        ist = pytz.timezone('Asia/Kolkata')
-        timestamp = datetime.now(ist).strftime("%Y-%m-%d %H:%M:%S IST")
-    except:
-        # Fallback to system time
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # Get current timestamp
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    # Get selected city from session state or use default
-# Inside add_header_footer function, replace the location section with:
-
-# Get selected city from session state or use default
-if hasattr(st.session_state, 'selected_city') and st.session_state.selected_city:
-    selected_city = st.session_state.selected_city
-    
-    # Map English city names to Chinese for Mandarin PDFs
-    if language == "Mandarin":
-        city_translations = {
-            "Guangdong": "广东",
-            "Dongguan": "东莞",
-            "Shenzhen": "深圳",
-            "Guangzhou": "广州",
-            "Shanghai": "上海",
-            "Beijing": "北京",
-            "Hong Kong": "香港",
-            "Macau": "澳门",
-            "Hangzhou": "杭州",
-            "Ningbo": "宁波",
-            "Wenzhou": "温州",
-            "Foshan": "佛山",
-            "Zhongshan": "中山",
-            "Zhuhai": "珠海",
-            "Jiangmen": "江门",
-            "Huizhou": "惠州",
-            "Shaoxing": "绍兴",
-            "Jinhua": "金华",
-            "Taizhou": "台州",
-            "Quanzhou": "泉州",
-            "Xiamen": "厦门",
-            "Fuzhou": "福州"
-        }
-        location = city_translations.get(selected_city, selected_city)
-    else:
-        location = selected_city
-else:
-    # Default based on PDF language
-    if language == "Mandarin":
-        location = "广东"  # Guangdong in Chinese
-    else:
-        location = "Guangdong"
+    # Page dimensions
+    page_width = A4[0]
+    page_height = A4[1]
     
     # FOOTER: Centered at bottom with timestamp and location
-    footer_text = f"Generated: {timestamp} | Location: {location}"
+    footer_text = f"Generated: {timestamp} | Location: {location_info}"
     footer_font_size = 8
     
-    canvas.setFont(base_font, footer_font_size)
+    canvas.setFont('Helvetica', footer_font_size)
     canvas.setFillColor(colors.grey)
     
     # Draw footer text centered at bottom
-    text_width = canvas.stringWidth(footer_text, base_font, footer_font_size)
+    text_width = canvas.stringWidth(footer_text, 'Helvetica', footer_font_size)
     footer_x = (page_width - text_width) / 2
     footer_y = 1*cm  # 1cm from bottom
     
     canvas.drawString(footer_x, footer_y, footer_text)
     
-    # HEADER: GRAND STEP (H.K.) LTD on all pages except first
-    if doc.page > 1:
-        header_font_size = 12
-        canvas.setFont(bold_font, header_font_size)
-        canvas.setFillColor(colors.black)
-        
-        # Draw header at top center (NO UNDERLINE)
-        header_text = "GRAND STEP (H.K.) LTD"
-        canvas.drawCentredString(page_width/2, page_height - 1*cm, header_text)
-    
     # PAGE NUMBER: Top right corner
     page_text = f"Page {doc.page}"
-    canvas.setFont(base_font, 10)
+    canvas.setFont('Helvetica', 10)
     canvas.drawRightString(page_width - 2*cm, page_height - 1*cm, page_text)
     
     canvas.restoreState()
