@@ -2999,24 +2999,27 @@ def get_current_location():
     except Exception as e:
         return "Location unavailable"
         # Define header/footer function with timestamp and location
+                # Define header/footer function with timestamp and location
         def add_header_footer(canvas, doc):
             """Add header and footer to all pages with timestamp and location"""
             canvas.saveState()
             
-            # Get current timestamp in the selected city's timezone
-            selected_city = st.session_state.get('selected_city', 'Guangzhou')
-            city_timezone = CITY_TIMEZONES.get(selected_city, 'Asia/Shanghai')
+            # Get current timestamp in China time (UTC+8)
+            from datetime import timedelta
             
-            try:
-                # Get current UTC time
-                utc_now = datetime.utcnow()
-                # Convert to selected city's timezone
-                tz = pytz.timezone(city_timezone)
-                city_time = utc_now.replace(tzinfo=pytz.utc).astimezone(tz)
-                timestamp = city_time.strftime("%Y-%m-%d %H:%M:%S")
-            except Exception:
-                # Fallback to UTC if timezone conversion fails
-                timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            selected_city = st.session_state.get('selected_city', 'Guangzhou')
+            
+            # Calculate China time (UTC+8 for most cities, UTC+6 for Ürümqi)
+            utc_now = datetime.utcnow()
+            
+            if selected_city == "Ürümqi":
+                # Ürümqi uses Xinjiang Time (UTC+6)
+                china_time = utc_now + timedelta(hours=6)
+            else:
+                # Most Chinese cities use China Standard Time (UTC+8)
+                china_time = utc_now + timedelta(hours=8)
+            
+            timestamp = china_time.strftime("%Y-%m-%d %H:%M:%S")
             
             # USE SELECTED CITY FROM DROPDOWN
             chinese_city_name = CHINESE_CITIES.get(selected_city, "广东")
