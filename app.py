@@ -2662,7 +2662,7 @@ def create_problem_table(problem_data, title, language, chinese_font=None):
              '', '', '', ''],
             
             # Last row - Inspection results - USE CALCULATED TOTALS
-            [f'{t("total_defects_count")}:', 
+            [f'总缺陷数:' if language == "Mandarin" else 'Total:', 
              str(total_cr), 
              str(total_major), 
              str(total_minor), 
@@ -3998,6 +3998,7 @@ def render_problem_table_ui(which_table="ai"):
             'stains': '溢胶',
             'thread_ends': '线头'
         }
+        total_text = "总缺陷数:"
     else:
         problem_names = {
             'color_variation': 'Color Variation',
@@ -4024,6 +4025,7 @@ def render_problem_table_ui(which_table="ai"):
             'stains': 'Stains',
             'thread_ends': 'Thread ends'
         }
+        total_text = "Total:"
     
     # Create a COMPLETE HTML table as a single string
     table_html = f'''<div class="scrollable-table">
@@ -4086,7 +4088,7 @@ def render_problem_table_ui(which_table="ai"):
         </tbody>
         <tfoot>
             <tr>
-                <td style="text-align: left; padding: 8px; border: 1px solid #e5e7eb; background-color: #fffacd; font-weight: bold;">{t('total_defects_count')}:</td>
+                <td style="text-align: left; padding: 8px; border: 1px solid #e5e7eb; background-color: #fffacd; font-weight: bold;">{total_text}</td>
                 <td style="text-align: center; padding: 8px; border: 1px solid #e5e7eb; background-color: #b0c4de; font-weight: bold;">{total_cr}</td>
                 <td style="text-align: center; padding: 8px; border: 1px solid #e5e7eb; background-color: #b0c4de; font-weight: bold;">{total_major}</td>
                 <td style="text-align: center; padding: 8px; border: 1px solid #e5e7eb; background-color: #b0c4de; font-weight: bold;">{total_minor}</td>
@@ -4136,10 +4138,6 @@ def render_problem_table_ui(which_table="ai"):
             st.session_state.problem_defects_qc[selected_problem][selected_severity] = int(new_value)
             st.success(f"Updated {problem_names[selected_problem]} - {t(selected_severity.upper())} to {new_value}")
             st.rerun()
-
-# JavaScript message handler for component communication
-# Add this section AFTER the PDF language selection in the sidebar
-
 
 
 with st.sidebar:
