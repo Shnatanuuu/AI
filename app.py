@@ -3342,74 +3342,73 @@ def generate_multilingual_pdf(order_info, language):
             base_font = 'Helvetica'
             bold_font = 'Helvetica-Bold'
         
-        # Define header/footer function with timestamp and location
-        # Define header/footer function with timestamp and location
-def add_header_footer(canvas, doc):
-    """Add header and footer to all pages with timestamp and location"""
-    canvas.saveState()
-    
-    # Get current timestamp based on selected city's timezone
-    selected_city = st.session_state.get('selected_city', 'Guangzhou')
-    
-    # Get the timezone for the selected city from your CITY_TIMEZONES dictionary
-    city_timezone = CITY_TIMEZONES.get(selected_city, 'Asia/Shanghai')  # Default to Shanghai timezone
-    
-    try:
-        # Create timezone object
-        import pytz
-        tz = pytz.timezone(city_timezone)
-        
-        # Get current time in the selected city's timezone
-        city_time = datetime.now(tz)
-        timestamp = city_time.strftime("%Y-%m-%d %H:%M:%S")
-        
-    except Exception as e:
-        # Fallback to server time if timezone conversion fails
-        st.warning(f"Timezone error for {selected_city}: {str(e)}. Using server time.")
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    # USE SELECTED CITY FROM DROPDOWN
-    chinese_city_name = CHINESE_CITIES.get(selected_city, "广东")
-    
-    if language == "Mandarin":
-        location = chinese_city_name
-    else:
-        location = selected_city
-    
-    # Page dimensions
-    page_width = A4[0]
-    page_height = A4[1]
-    
-    # FOOTER: Centered at bottom with timestamp and location
-    footer_text = f"Generated: {timestamp} | Location: {location}"
-    footer_font_size = 8
-    
-    canvas.setFont(base_font, footer_font_size)
-    canvas.setFillColor(colors.grey)
-    
-    # Draw footer text centered at bottom
-    text_width = canvas.stringWidth(footer_text, base_font, footer_font_size)
-    footer_x = (page_width - text_width) / 2
-    footer_y = 1*cm  # 1cm from bottom
-    
-    canvas.drawString(footer_x, footer_y, footer_text)
-    
-    # HEADER: GRAND STEP (H.K.) LTD on all pages except first
-    if doc.page > 1:
-        header_font_size = 12
-        canvas.setFont(bold_font, header_font_size)
-        canvas.setFillColor(colors.black)
-        
-        # Draw header at top center (NO UNDERLINE)
-        header_text = "GRAND STEP (H.K.) LTD"
-        canvas.drawCentredString(page_width/2, page_height - 1*cm, header_text)
-    
-    # PAGE NUMBER: Top right corner
-    page_text = f"Page {doc.page}"
-    canvas.setFont(base_font, 10)
-    canvas.drawRightString(page_width - 2*cm, page_height - 1*cm, page_text)
-    
-    canvas.restoreState()
+        # Define header/footer function with timestamp and location - OUTSIDE the try block
+        def add_header_footer(canvas, doc):
+            """Add header and footer to all pages with timestamp and location"""
+            canvas.saveState()
+            
+            # Get current timestamp based on selected city's timezone
+            selected_city = st.session_state.get('selected_city', 'Guangzhou')
+            
+            # Get the timezone for the selected city from your CITY_TIMEZONES dictionary
+            city_timezone = CITY_TIMEZONES.get(selected_city, 'Asia/Shanghai')  # Default to Shanghai timezone
+            
+            try:
+                # Create timezone object
+                import pytz
+                tz = pytz.timezone(city_timezone)
+                
+                # Get current time in the selected city's timezone
+                city_time = datetime.now(tz)
+                timestamp = city_time.strftime("%Y-%m-%d %H:%M:%S")
+                
+            except Exception as e:
+                # Fallback to server time if timezone conversion fails
+                # Note: We can't use st.warning here as this runs in PDF generation context
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            # USE SELECTED CITY FROM DROPDOWN
+            chinese_city_name = CHINESE_CITIES.get(selected_city, "广东")
+            
+            if language == "Mandarin":
+                location = chinese_city_name
+            else:
+                location = selected_city
+            
+            # Page dimensions
+            page_width = A4[0]
+            page_height = A4[1]
+            
+            # FOOTER: Centered at bottom with timestamp and location
+            footer_text = f"Generated: {timestamp} | Location: {location}"
+            footer_font_size = 8
+            
+            canvas.setFont(base_font, footer_font_size)
+            canvas.setFillColor(colors.grey)
+            
+            # Draw footer text centered at bottom
+            text_width = canvas.stringWidth(footer_text, base_font, footer_font_size)
+            footer_x = (page_width - text_width) / 2
+            footer_y = 1*cm  # 1cm from bottom
+            
+            canvas.drawString(footer_x, footer_y, footer_text)
+            
+            # HEADER: GRAND STEP (H.K.) LTD on all pages except first
+            if doc.page > 1:
+                header_font_size = 12
+                canvas.setFont(bold_font, header_font_size)
+                canvas.setFillColor(colors.black)
+                
+                # Draw header at top center (NO UNDERLINE)
+                header_text = "GRAND STEP (H.K.) LTD"
+                canvas.drawCentredString(page_width/2, page_height - 1*cm, header_text)
+            
+            # PAGE NUMBER: Top right corner
+            page_text = f"Page {doc.page}"
+            canvas.setFont(base_font, 10)
+            canvas.drawRightString(page_width - 2*cm, page_height - 1*cm, page_text)
+            
+            canvas.restoreState()
         
         # Create document with increased bottom margin for footer
         doc = SimpleDocTemplate(buffer, pagesize=A4, 
