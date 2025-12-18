@@ -4,6 +4,7 @@ from reportlab.lib.utils import simpleSplit
 import openai
 import base64
 from PIL import Image
+import pytz
 import io
 from datetime import datetime
 import json
@@ -58,7 +59,49 @@ LANGUAGES = {
     "English": {"code": "en", "flag": "🇺🇸", "label": "English"},
     "Mandarin": {"code": "zh", "flag": "🇨🇳", "label": "普通话 (Mandarin)"}
 }
-
+# Timezone mapping for Chinese cities
+CITY_TIMEZONES = {
+    "Guangzhou": "Asia/Shanghai",
+    "Shenzhen": "Asia/Shanghai",
+    "Dongguan": "Asia/Shanghai",
+    "Foshan": "Asia/Shanghai",
+    "Zhongshan": "Asia/Shanghai",
+    "Huizhou": "Asia/Shanghai",
+    "Zhuhai": "Asia/Shanghai",
+    "Jiangmen": "Asia/Shanghai",
+    "Zhaoqing": "Asia/Shanghai",
+    "Shanghai": "Asia/Shanghai",
+    "Beijing": "Asia/Shanghai",
+    "Suzhou": "Asia/Shanghai",
+    "Hangzhou": "Asia/Shanghai",
+    "Ningbo": "Asia/Shanghai",
+    "Wenzhou": "Asia/Shanghai",
+    "Wuhan": "Asia/Shanghai",
+    "Chengdu": "Asia/Shanghai",
+    "Chongqing": "Asia/Shanghai",
+    "Tianjin": "Asia/Shanghai",
+    "Nanjing": "Asia/Shanghai",
+    "Xi'an": "Asia/Shanghai",
+    "Qingdao": "Asia/Shanghai",
+    "Dalian": "Asia/Shanghai",
+    "Shenyang": "Asia/Shanghai",
+    "Changsha": "Asia/Shanghai",
+    "Zhengzhou": "Asia/Shanghai",
+    "Jinan": "Asia/Shanghai",
+    "Harbin": "Asia/Shanghai",
+    "Changchun": "Asia/Shanghai",
+    "Taiyuan": "Asia/Shanghai",
+    "Shijiazhuang": "Asia/Shanghai",
+    "Lanzhou": "Asia/Shanghai",
+    "Xiamen": "Asia/Shanghai",
+    "Fuzhou": "Asia/Shanghai",
+    "Nanning": "Asia/Shanghai",
+    "Kunming": "Asia/Shanghai",
+    "Guiyang": "Asia/Shanghai",
+    "Haikou": "Asia/Shanghai",
+    "Ürümqi": "Asia/Urumqi",  # Different timezone for Ürümqi
+    "Lhasa": "Asia/Urumqi"
+}
 # Translation dictionary - REMOVED CANTONESE
 TRANSLATIONS = {
     "English": {
@@ -2955,37 +2998,68 @@ def get_current_location():
         return "Location unavailable"
     except Exception as e:
         return "Location unavailable"
-def add_header_footer(canvas, doc, location_info):
-    """Add header and footer to all pages"""
-    canvas.saveState()
-    
-    # Get current timestamp
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    # Page dimensions
-    page_width = A4[0]
-    page_height = A4[1]
-    
-    # FOOTER: Centered at bottom with timestamp and location
-    footer_text = f"Generated: {timestamp} | Location: {location_info}"
-    footer_font_size = 8
-    
-    canvas.setFont('Helvetica', footer_font_size)
-    canvas.setFillColor(colors.grey)
-    
-    # Draw footer text centered at bottom
-    text_width = canvas.stringWidth(footer_text, 'Helvetica', footer_font_size)
-    footer_x = (page_width - text_width) / 2
-    footer_y = 1*cm  # 1cm from bottom
-    
-    canvas.drawString(footer_x, footer_y, footer_text)
-    
-    # PAGE NUMBER: Top right corner
-    page_text = f"Page {doc.page}"
-    canvas.setFont('Helvetica', 10)
-    canvas.drawRightString(page_width - 2*cm, page_height - 1*cm, page_text)
-    
-    canvas.restoreState()
+        # Define header/footer function with timestamp and location
+        def add_header_footer(canvas, doc):
+            """Add header and footer to all pages with timestamp and location"""
+            canvas.saveState()
+            
+            # Get current timestamp in the selected city's timezone
+            selected_city = st.session_state.get('selected_city', 'Guangzhou')
+            city_timezone = CITY_TIMEZONES.get(selected_city, 'Asia/Shanghai')
+            
+            try:
+                # Get current UTC time
+                utc_now = datetime.utcnow()
+                # Convert to selected city's timezone
+                tz = pytz.timezone(city_timezone)
+                city_time = utc_now.replace(tzinfo=pytz.utc).astimezone(tz)
+                timestamp = city_time.strftime("%Y-%m-%d %H:%M:%S")
+            except Exception:
+                # Fallback to UTC if timezone conversion fails
+                timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            
+            # USE SELECTED CITY FROM DROPDOWN
+            chinese_city_name = CHINESE_CITIES.get(selected_city, "广东")
+            
+            if language == "Mandarin":
+                location = chinese_city_name
+            else:
+                location = selected_city
+            
+            # Page dimensions
+            page_width = A4[0]
+            page_height = A4[1]
+            
+            # FOOTER: Centered at bottom with timestamp and location
+            footer_text = f"Generated: {timestamp} | Location: {location}"
+            footer_font_size = 8
+            
+            canvas.setFont(base_font, footer_font_size)
+            canvas.setFillColor(colors.grey)
+            
+            # Draw footer text centered at bottom
+            text_width = canvas.stringWidth(footer_text, base_font, footer_font_size)
+            footer_x = (page_width - text_width) / 2
+            footer_y = 1*cm  # 1cm from bottom
+            
+            canvas.drawString(footer_x, footer_y, footer_text)
+            
+            # HEADER: GRAND STEP (H.K.) LTD on all pages except first
+            if doc.page > 1:
+                header_font_size = 12
+                canvas.setFont(bold_font, header_font_size)
+                canvas.setFillColor(colors.black)
+                
+                # Draw header at top center (NO UNDERLINE)
+                header_text = "GRAND STEP (H.K.) LTD"
+                canvas.drawCentredString(page_width/2, page_height - 1*cm, header_text)
+            
+            # PAGE NUMBER: Top right corner
+            page_text = f"Page {doc.page}"
+            canvas.setFont(base_font, 10)
+            canvas.drawRightString(page_width - 2*cm, page_height - 1*cm, page_text)
+            
+            canvas.restoreState()
 def render_photos_of_faults_ui():
     """Render Photos of Faults UI with arrow annotation tool"""
     st.markdown(f"### 📷 {t('qc_photos_of_faults')}")
@@ -4055,6 +4129,44 @@ def render_problem_table_ui(which_table="ai"):
 
 # JavaScript message handler for component communication
 # Add this section AFTER the PDF language selection in the sidebar
+
+
+
+with st.sidebar:
+    st.markdown(f"### {t('language_preference')}")
+    
+    st.markdown("**Interface Language:**")
+    ui_lang = st.selectbox(
+        "UI Language",
+        list(LANGUAGES.keys()),
+        index=list(LANGUAGES.keys()).index(st.session_state.ui_language),
+        format_func=lambda x: f"{LANGUAGES[x]['flag']} {LANGUAGES[x]['label']}",
+        key="ui_lang_select",
+        label_visibility="collapsed"
+    )
+    
+    st.markdown("**PDF Report Language:**")
+    pdf_lang = st.selectbox(
+        "PDF Language",
+        list(LANGUAGES.keys()),
+        index=list(LANGUAGES.keys()).index(st.session_state.pdf_language),
+        format_func=lambda x: f"{LANGUAGES[x]['flag']} {LANGUAGES[x]['label']}",
+        key="pdf_lang_select",
+        label_visibility="collapsed"
+    )
+
+if ui_lang != st.session_state.ui_language:
+    st.session_state.ui_language = ui_lang
+    st.rerun()
+
+if pdf_lang != st.session_state.pdf_language:
+    st.session_state.pdf_language = pdf_lang
+
+# Main App Content
+st.markdown(f'<div class="hero-section"><h1 style="margin:0; font-size: 1.8rem;">{t("app_title")}</h1><p style="margin-top:0.5rem; font-size: 0.9rem;">GRAND STEP (H.K.) LTD<br>Professional Footwear Manufacturing &amp; Quality Control<br>AI-Powered Quality Inspection System</p></div>', unsafe_allow_html=True)
+
+st.markdown(f'<div class="section-header">{t("order_info")}</div>', unsafe_allow_html=True)
+
 with st.sidebar:
     st.markdown("---")
     st.markdown("### 📍 Location Selection")
@@ -4123,43 +4235,6 @@ with st.sidebar:
     if selected_city_english != st.session_state.selected_city:
         st.session_state.selected_city = selected_city_english
         st.rerun()
-
-
-with st.sidebar:
-    st.markdown(f"### {t('language_preference')}")
-    
-    st.markdown("**Interface Language:**")
-    ui_lang = st.selectbox(
-        "UI Language",
-        list(LANGUAGES.keys()),
-        index=list(LANGUAGES.keys()).index(st.session_state.ui_language),
-        format_func=lambda x: f"{LANGUAGES[x]['flag']} {LANGUAGES[x]['label']}",
-        key="ui_lang_select",
-        label_visibility="collapsed"
-    )
-    
-    st.markdown("**PDF Report Language:**")
-    pdf_lang = st.selectbox(
-        "PDF Language",
-        list(LANGUAGES.keys()),
-        index=list(LANGUAGES.keys()).index(st.session_state.pdf_language),
-        format_func=lambda x: f"{LANGUAGES[x]['flag']} {LANGUAGES[x]['label']}",
-        key="pdf_lang_select",
-        label_visibility="collapsed"
-    )
-
-if ui_lang != st.session_state.ui_language:
-    st.session_state.ui_language = ui_lang
-    st.rerun()
-
-if pdf_lang != st.session_state.pdf_language:
-    st.session_state.pdf_language = pdf_lang
-
-# Main App Content
-st.markdown(f'<div class="hero-section"><h1 style="margin:0; font-size: 1.8rem;">{t("app_title")}</h1><p style="margin-top:0.5rem; font-size: 0.9rem;">GRAND STEP (H.K.) LTD<br>Professional Footwear Manufacturing &amp; Quality Control<br>AI-Powered Quality Inspection System</p></div>', unsafe_allow_html=True)
-
-st.markdown(f'<div class="section-header">{t("order_info")}</div>', unsafe_allow_html=True)
-
 # Order Information
 col1, col2, col3 = st.columns(3)
 with col1:
