@@ -3344,49 +3344,14 @@ def generate_multilingual_pdf(order_info, language):
             # Get current timestamp
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
-            # SIMPLE LOCATION HANDLING - Major cities only
-            # Default location
-            location = "Unknown Location"
+            # USE SELECTED CITY FROM DROPDOWN
+            selected_city = st.session_state.get('selected_city', 'Guangzhou')
+            chinese_city_name = CHINESE_CITIES.get(selected_city, "广东")
             
-            try:
-                import requests
-                response = requests.get('https://ipinfo.io/json', timeout=2)
-                if response.status_code == 200:
-                    data = response.json()
-                    country_code = data.get('country', '')
-                    city = data.get('city', '').strip().lower()
-                    
-                    # Map country code to primary city
-                    primary_cities = {
-                        'IN': 'Mumbai',        # India - default to Mumbai
-                        'US': 'New York',      # USA - default to New York
-                        'GB': 'London',        # UK - default to London
-                        'CN': 'Guangdong',     # China - default to Guangdong
-                        'JP': 'Tokyo',         # Japan - default to Tokyo
-                        'SG': 'Singapore',     # Singapore
-                        'AU': 'Sydney',        # Australia - default to Sydney
-                        'CA': 'Toronto',       # Canada - default to Toronto
-                        'DE': 'Berlin',        # Germany - default to Berlin
-                        'FR': 'Paris',         # France - default to Paris
-                    }
-                    
-                    # If we have a known country code, use its primary city
-                    if country_code in primary_cities:
-                        location = primary_cities[country_code]
-                    else:
-                        # Try to get city name, but keep it simple
-                        if city:
-                            # Capitalize first letter of each word
-                            location = ' '.join(word.capitalize() for word in city.split())
-                        else:
-                            location = "Unknown Location"
-                            
-            except:
-                # If API fails, use default based on language
-                if language == "Mandarin":
-                    location = "广东"  # Guangdong in Chinese
-                else:
-                    location = "Mumbai"
+            if language == "Mandarin":
+                location = chinese_city_name
+            else:
+                location = selected_city
             
             # Page dimensions
             page_width = A4[0]
@@ -3423,7 +3388,6 @@ def generate_multilingual_pdf(order_info, language):
             
             canvas.restoreState()
         
-        # [Rest of the function remains exactly the same...]
         # Create document with increased bottom margin for footer
         doc = SimpleDocTemplate(buffer, pagesize=A4, 
                                rightMargin=2*cm, leftMargin=2*cm, 
@@ -3814,49 +3778,7 @@ def generate_multilingual_pdf(order_info, language):
         import traceback
         st.error(traceback.format_exc())
         return None
-def get_browser_location():
-    """Get location via browser geolocation API"""
-    html_code = '''
-    <script>
-    function getLocation() {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(showPosition, showError);
-        } else {
-            window.parent.postMessage({type: 'location', data: 'Geolocation not supported'}, '*');
-        }
-    }
-    
-    function showPosition(position) {
-        const lat = position.coords.latitude;
-        const lon = position.coords.longitude;
-        window.parent.postMessage({type: 'location', data: {lat: lat, lon: lon}}, '*');
-    }
-    
-    function showError(error) {
-        window.parent.postMessage({type: 'location', data: 'Location access denied'}, '*');
-    }
-    
-    // Get location when component loads
-    getLocation();
-    </script>
-    '''
-    
-    components.html(html_code, height=0)
-def get_current_location():
-    """Get current city using free IP geolocation API"""
-    try:
-        import requests
-        response = requests.get('http://ip-api.com/json/', timeout=5)
-        if response.status_code == 200:
-            data = response.json()
-            if data.get('status') == 'success':
-                city = data.get('city', '')
-                country = data.get('country', '')
-                if city and country:
-                    return f"{city}, {country}"
-        return "Location unavailable"
-    except Exception as e:
-        return "Location unavailable"
+
 def render_defect_section_with_audio(defect_type, category_key):
     """Render defect section with audio input option and editing capability"""
     st.markdown(f"### {t(f'{defect_type.lower()}_review')}")
@@ -4132,6 +4054,75 @@ def render_problem_table_ui(which_table="ai"):
             st.rerun()
 
 # JavaScript message handler for component communication
+# Add this section AFTER the PDF language selection in the sidebar
+with st.sidebar:
+    st.markdown("---")
+    st.markdown("### 📍 Location Selection")
+    
+    # Major Chinese cities with Chinese and English names
+    CHINESE_CITIES = {
+        "Guangzhou": "广东",
+        "Shenzhen": "深圳",
+        "Dongguan": "东莞",
+        "Foshan": "佛山",
+        "Zhongshan": "中山",
+        "Huizhou": "惠州",
+        "Zhuhai": "珠海",
+        "Jiangmen": "江门",
+        "Zhaoqing": "肇庆",
+        "Shanghai": "上海",
+        "Beijing": "北京",
+        "Suzhou": "苏州",
+        "Hangzhou": "杭州",
+        "Ningbo": "宁波",
+        "Wenzhou": "温州",
+        "Wuhan": "武汉",
+        "Chengdu": "成都",
+        "Chongqing": "重庆",
+        "Tianjin": "天津",
+        "Nanjing": "南京",
+        "Xi'an": "西安",
+        "Qingdao": "青岛",
+        "Dalian": "大连",
+        "Shenyang": "沈阳",
+        "Changsha": "长沙",
+        "Zhengzhou": "郑州",
+        "Jinan": "济南",
+        "Harbin": "哈尔滨",
+        "Changchun": "长春",
+        "Taiyuan": "太原",
+        "Shijiazhuang": "石家庄",
+        "Lanzhou": "兰州",
+        "Xiamen": "厦门",
+        "Fuzhou": "福州",
+        "Nanning": "南宁",
+        "Kunming": "昆明",
+        "Guiyang": "贵阳",
+        "Haikou": "海口",
+        "Ürümqi": "乌鲁木齐",
+        "Lhasa": "拉萨"
+    }
+    
+    # Initialize session state for selected city
+    if 'selected_city' not in st.session_state:
+        st.session_state.selected_city = "Guangzhou"  # Default city
+    
+    # Create dropdown with both English and Chinese names
+    city_options = [f"{city} ({chinese})" for city, chinese in CHINESE_CITIES.items()]
+    
+    selected_city_display = st.selectbox(
+        "Select City for Report Footer",
+        options=city_options,
+        index=city_options.index(f"{st.session_state.selected_city} ({CHINESE_CITIES[st.session_state.selected_city]})"),
+        help="Select a Chinese city for the report footer location"
+    )
+    
+    # Extract the English city name from selection
+    selected_city_english = selected_city_display.split(" (")[0]
+    
+    if selected_city_english != st.session_state.selected_city:
+        st.session_state.selected_city = selected_city_english
+        st.rerun()
 
 
 with st.sidebar:
