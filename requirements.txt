@@ -1,4 +1,5 @@
 altair==5.5.0
+pytz>=2023.3
 annotated-types==0.7.0
 anyio==4.12.0
 attrs==25.4.0
