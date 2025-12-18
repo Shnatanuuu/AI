@@ -3001,33 +3001,32 @@ def get_current_location():
         # Define header/footer function with timestamp and location
                 # Define header/footer function with timestamp and location
                 # Define header/footer function with timestamp and location
+                # Define header/footer function with timestamp and location
         def add_header_footer(canvas, doc):
             """Add header and footer to all pages with timestamp and location"""
             canvas.saveState()
             
-            # Get current timestamp in China time (UTC+8)
+            # Get current timestamp - use server local time and convert to China time
             from datetime import datetime, timedelta
             
             selected_city = st.session_state.get('selected_city', 'Guangzhou')
             
-            # Get current UTC time
-            utc_now = datetime.utcnow()
+            # Get server's current time
+            server_now = datetime.now()
             
-            # DEBUG: Print UTC time to console
-            # print(f"DEBUG UTC Time: {utc_now}")
+            # Calculate the offset to convert to China time
+            # If server is in UTC, we need +8 hours
+            # If server is already in IST (India, UTC+5:30), we need +2.5 hours to get to China time (UTC+8)
+            # Let's assume server is in UTC and add 8 hours
             
-            # Calculate China time (UTC+8 for most cities, UTC+6 for Ürümqi)
-            if selected_city == "Ürümqi":
-                # Ürümqi uses Xinjiang Time (UTC+6)
-                china_time = utc_now + timedelta(hours=6)
-            else:
-                # Most Chinese cities use China Standard Time (UTC+8)
-                china_time = utc_now + timedelta(hours=8)
+            # Method 1: Always add 8 hours (assumes server is UTC)
+            china_time = server_now + timedelta(hours=8)
+            
+            # Or Method 2: Use this if you know your server timezone
+            # china_time = server_now + timedelta(hours=8)  # If server is UTC
+            # china_time = server_now + timedelta(hours=2, minutes=30)  # If server is IST (UTC+5:30)
             
             timestamp = china_time.strftime("%Y-%m-%d %H:%M:%S")
-            
-            # DEBUG: Print China time to console
-            # print(f"DEBUG China Time: {timestamp}")
             
             # USE SELECTED CITY FROM DROPDOWN
             chinese_city_name = CHINESE_CITIES.get(selected_city, "广东")
