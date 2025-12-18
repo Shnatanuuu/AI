@@ -3000,18 +3000,23 @@ def get_current_location():
         return "Location unavailable"
         # Define header/footer function with timestamp and location
                 # Define header/footer function with timestamp and location
+                # Define header/footer function with timestamp and location
         def add_header_footer(canvas, doc):
             """Add header and footer to all pages with timestamp and location"""
             canvas.saveState()
             
             # Get current timestamp in China time (UTC+8)
-            from datetime import timedelta
+            from datetime import datetime, timedelta
             
             selected_city = st.session_state.get('selected_city', 'Guangzhou')
             
-            # Calculate China time (UTC+8 for most cities, UTC+6 for Ürümqi)
+            # Get current UTC time
             utc_now = datetime.utcnow()
             
+            # DEBUG: Print UTC time to console
+            # print(f"DEBUG UTC Time: {utc_now}")
+            
+            # Calculate China time (UTC+8 for most cities, UTC+6 for Ürümqi)
             if selected_city == "Ürümqi":
                 # Ürümqi uses Xinjiang Time (UTC+6)
                 china_time = utc_now + timedelta(hours=6)
@@ -3020,6 +3025,9 @@ def get_current_location():
                 china_time = utc_now + timedelta(hours=8)
             
             timestamp = china_time.strftime("%Y-%m-%d %H:%M:%S")
+            
+            # DEBUG: Print China time to console
+            # print(f"DEBUG China Time: {timestamp}")
             
             # USE SELECTED CITY FROM DROPDOWN
             chinese_city_name = CHINESE_CITIES.get(selected_city, "广东")
