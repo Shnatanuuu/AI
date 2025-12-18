@@ -3002,74 +3002,7 @@ def get_current_location():
                 # Define header/footer function with timestamp and location
                 # Define header/footer function with timestamp and location
                 # Define header/footer function with timestamp and location
-        def add_header_footer(canvas, doc):
-            """Add header and footer to all pages with timestamp and location"""
-            canvas.saveState()
-            
-            # Get current timestamp - use server local time and convert to China time
-            from datetime import datetime, timedelta
-            
-            selected_city = st.session_state.get('selected_city', 'Guangzhou')
-            
-            # Get server's current time
-            server_now = datetime.now()
-            
-            # Calculate the offset to convert to China time
-            # If server is in UTC, we need +8 hours
-            # If server is already in IST (India, UTC+5:30), we need +2.5 hours to get to China time (UTC+8)
-            # Let's assume server is in UTC and add 8 hours
-            
-            # Method 1: Always add 8 hours (assumes server is UTC)
-            china_time = server_now + timedelta(hours=8)
-            
-            # Or Method 2: Use this if you know your server timezone
-            # china_time = server_now + timedelta(hours=8)  # If server is UTC
-            # china_time = server_now + timedelta(hours=2, minutes=30)  # If server is IST (UTC+5:30)
-            
-            timestamp = china_time.strftime("%Y-%m-%d %H:%M:%S")
-            
-            # USE SELECTED CITY FROM DROPDOWN
-            chinese_city_name = CHINESE_CITIES.get(selected_city, "广东")
-            
-            if language == "Mandarin":
-                location = chinese_city_name
-            else:
-                location = selected_city
-            
-            # Page dimensions
-            page_width = A4[0]
-            page_height = A4[1]
-            
-            # FOOTER: Centered at bottom with timestamp and location
-            footer_text = f"Generated: {timestamp} | Location: {location}"
-            footer_font_size = 8
-            
-            canvas.setFont(base_font, footer_font_size)
-            canvas.setFillColor(colors.grey)
-            
-            # Draw footer text centered at bottom
-            text_width = canvas.stringWidth(footer_text, base_font, footer_font_size)
-            footer_x = (page_width - text_width) / 2
-            footer_y = 1*cm  # 1cm from bottom
-            
-            canvas.drawString(footer_x, footer_y, footer_text)
-            
-            # HEADER: GRAND STEP (H.K.) LTD on all pages except first
-            if doc.page > 1:
-                header_font_size = 12
-                canvas.setFont(bold_font, header_font_size)
-                canvas.setFillColor(colors.black)
-                
-                # Draw header at top center (NO UNDERLINE)
-                header_text = "GRAND STEP (H.K.) LTD"
-                canvas.drawCentredString(page_width/2, page_height - 1*cm, header_text)
-            
-            # PAGE NUMBER: Top right corner
-            page_text = f"Page {doc.page}"
-            canvas.setFont(base_font, 10)
-            canvas.drawRightString(page_width - 2*cm, page_height - 1*cm, page_text)
-            
-            canvas.restoreState()
+
 def render_photos_of_faults_ui():
     """Render Photos of Faults UI with arrow annotation tool"""
     st.markdown(f"### 📷 {t('qc_photos_of_faults')}")
@@ -3421,15 +3354,29 @@ def generate_multilingual_pdf(order_info, language):
             bold_font = 'Helvetica-Bold'
         
         # Define header/footer function with timestamp and location
+                # Define header/footer function with timestamp and location
         def add_header_footer(canvas, doc):
             """Add header and footer to all pages with timestamp and location"""
             canvas.saveState()
             
-            # Get current timestamp
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            # Get current timestamp in China time (UTC+8)
+            from datetime import datetime, timedelta
+            
+            selected_city = st.session_state.get('selected_city', 'Guangzhou')
+            
+            # Calculate China time (UTC+8 for most cities, UTC+6 for Ürümqi)
+            utc_now = datetime.utcnow()
+            
+            if selected_city == "Ürümqi":
+                # Ürümqi uses Xinjiang Time (UTC+6)
+                china_time = utc_now + timedelta(hours=6)
+            else:
+                # Most Chinese cities use China Standard Time (UTC+8)
+                china_time = utc_now + timedelta(hours=8)
+            
+            timestamp = china_time.strftime("%Y-%m-%d %H:%M:%S")
             
             # USE SELECTED CITY FROM DROPDOWN
-            selected_city = st.session_state.get('selected_city', 'Guangzhou')
             chinese_city_name = CHINESE_CITIES.get(selected_city, "广东")
             
             if language == "Mandarin":
@@ -3471,7 +3418,6 @@ def generate_multilingual_pdf(order_info, language):
             canvas.drawRightString(page_width - 2*cm, page_height - 1*cm, page_text)
             
             canvas.restoreState()
-        
         # Create document with increased bottom margin for footer
         doc = SimpleDocTemplate(buffer, pagesize=A4, 
                                rightMargin=2*cm, leftMargin=2*cm, 
